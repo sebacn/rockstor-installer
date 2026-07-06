@@ -45,3 +45,10 @@ node_modules/
 
 # Vagrant
 .vagrant
+
+# Python virtual environment for kiwi-ng (created by the environment update script)
+kiwi-env/
+
+# kiwi-ng build output
+kiwi-images/
+images/
