@@ -29,9 +29,33 @@ them on an x86_64 host, e.g.:
 `KiwiProfileNotFound: profile Leap16.0.ARM64EFI not found for host arch x86_64`.
 Managed Cursor Cloud Agents do not expose a way to select CPU architecture (no
 field in `environment.json`; the fleet is x86_64). To build/validate the aarch64
-profiles you need an **arm64 host**, which on Cursor means a Self-Hosted arm64
-pool or contacting Cursor support. The committed Dockerfile is arch-agnostic, so
-on an arm64 host it would produce the aarch64 toolchain automatically.
+profiles you need an **arm64 host** (a Self-Hosted Pool worker on arm64
+hardware, e.g. a Raspberry Pi 5) — see below.
+
+### arm64 builds via a Self-Hosted Pool worker (e.g. Raspberry Pi 5)
+Self-Hosted Pool workers do NOT require Kubernetes — a single Docker host (or a
+bare `agent` process under `systemd`/`tmux`) is a supported footprint, so a Pi 5
+can run one. `.cursor/worker.Dockerfile` builds such a worker image: openSUSE
+Tumbleweed (aarch64) + `python3-kiwi` + kiwi build deps + the Cursor `agent` CLI
+(its installer supports arm64). On a real arm64 host kiwi can select and build
+the aarch64 profiles that are impossible on the managed x86_64 fleet.
+
+Prerequisites (from Cursor docs): a Cursor **Enterprise** plan, a **service
+account API key**, and admin-enabled self-hosted settings. Pool selection is via
+dashboard settings + labels + trigger hints (e.g. GitHub `@cursoragent
+pool=<name>`), NOT via `.cursor/environment.json`.
+
+Build + run on the Pi 5 (or cross-build with `buildx --platform linux/arm64`):
+```
+docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor
+git clone <your-fork>/rockstor-installer.git ~/repo
+agent worker --pool --pool-name rockstor-arm64 --worker-dir ~/repo start
+```
+
+Pi 5 caveats: 4 cores / 4–8 GB RAM and SD/USB storage are enough to run the
+`agent` process and validate configs, but a *full* `kiwi-ng system build` is
+disk- and CPU-heavy (15 GB+), needs root + loop devices (and boxbuild needs
+`/dev/kvm`), so use fast SSD/NVMe storage and expect long build times.
 
 ### Fast config validation (use this to iterate on `rockstor.kiwi`)
 `kiwi-ng` schema-validates the description when it loads it. To validate + model
