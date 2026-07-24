@@ -57,6 +57,14 @@ Pi 5 caveats: 4 cores / 4–8 GB RAM and SD/USB storage are enough to run the
 disk- and CPU-heavy (15 GB+), needs root + loop devices (and boxbuild needs
 `/dev/kvm`), so use fast SSD/NVMe storage and expect long build times.
 
+**Pi5 installer build in Docker on the Pi host:** use `.cursor/run-pi5-kiwi-build.sh`
+after `docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor`.
+The script runs a privileged container with `-v /dev:/dev` and `loop max_part=8`
+so kiwi can create `/dev/loop0p1` (otherwise `KiwiMappedDeviceError`). It also
+removes `$ROCKSTOR_KIWI_TARGET/build` before each run (`KiwiRootDirExists`). Set
+`ROCKSTOR_KIWI_TARGET` to a filesystem with 15 GB+ free. Details: README
+Tumbleweed.RaspberryPi5 → Docker on Raspberry Pi 5.
+
 ### Fast config validation (use this to iterate on `rockstor.kiwi`)
 `kiwi-ng` schema-validates the description when it loads it. To validate + model
 the recipe without a full build (use an x86_64 profile on the x86_64 host):
@@ -65,7 +73,7 @@ python3.11 -c "from kiwi.xml_description import XMLDescription; from kiwi.xml_st
 ```
 
 ### Lint
-- Shell scripts: `shellcheck *.sh vagrant_env/*.sh` and `bash -n <script>`
+- Shell scripts: `shellcheck *.sh .cursor/run-pi5-kiwi-build.sh vagrant_env/*.sh` and `bash -n <script>`
   (ShellCheck is in the image). Current scripts only emit info/style/warning
   items (e.g. `kiwi_iname`/`kiwi_*` are injected by kiwi at build time,
   `.kconfig`/`.profile` are sourced inside the image) — no real errors.
