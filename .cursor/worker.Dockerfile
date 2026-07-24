@@ -9,6 +9,10 @@
 # Build ON arm64 hardware (or cross-build with buildx --platform linux/arm64):
 #   docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor
 #
+# Pi5 installer build inside that image (privileged, host /dev for loop partitions):
+#   ./.cursor/run-pi5-kiwi-build.sh
+# See README.md "Tumbleweed.RaspberryPi5 profile" → Docker on Raspberry Pi 5.
+#
 # Run as a Self-Hosted Pool worker (requires a Cursor Enterprise plan, a service
 # account API key, and admin-enabled self-hosted settings). Route work to it
 # from GitHub with:  @cursoragent pool=rockstor-arm64 <task>
@@ -43,6 +47,10 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh \
         xorriso \
         dosfstools \
         binutils \
+        device-mapper \
+        kpartx \
+        parted \
+        systemd \
     && zypper clean --all
 
 # Non-root worker user with passwordless sudo (Cursor convention).

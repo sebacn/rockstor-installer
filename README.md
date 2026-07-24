@@ -246,6 +246,54 @@ Executed, as the root user, in the directory containing this repository's `rocks
 ```shell
 kiwi-ng --profile=Tumbleweed.RaspberryPi5 --type oem system build --description ./ --target-dir /home/kiwi-images/
 ```
+
+#### Docker build on Raspberry Pi 5 (`rockstor-worker:arm64`)
+
+You can run the same `kiwi-ng` command inside the openSUSE Tumbleweed worker image
+built from `.cursor/worker.Dockerfile`. This was validated on a Pi 5 host (July 2026).
+Use a **target directory on a filesystem with at least ~15 GB free** (kiwi downloads
+RPMs and writes a ~5 GB `.raw` plus a `build/` tree). If the root filesystem is
+small, point output elsewhere, for example:
+
+```shell
+export ROCKSTOR_KIWI_TARGET=/mnt/bdata/kiwi-images
+export ROCKSTOR_KIWI_LOG=/mnt/bdata/kiwi-build.log
+```
+
+**One-time:** build the worker image on the Pi (or `buildx --platform linux/arm64`):
+
+```shell
+docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor
+```
+
+**Each build:** from the repo root (requires `sudo` for Docker on most setups):
+
+```shell
+chmod +x .cursor/run-pi5-kiwi-build.sh
+./.cursor/run-pi5-kiwi-build.sh
+```
+
+The helper script:
+
+- loads `loop` with `max_part=8` on the host;
+- removes any previous `$ROCKSTOR_KIWI_TARGET/build` tree (avoids `KiwiRootDirExists`);
+- runs a **privileged** container with **`-v /dev:/dev`** and **`SYS_ADMIN`** so kiwi
+  can create `/dev/loop0p1` while partitioning the disk image (without this, the build
+  fails with `KiwiMappedDeviceError: Device /dev/loop0p1 does not exist`);
+- bind-mounts the repo to `/workspace` and `$ROCKSTOR_KIWI_TARGET` to
+  `/home/kiwi-images` (kiwi’s `--target-dir` inside the container).
+
+Monitor progress:
+
+```shell
+tail -f "${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build.log}"
+sudo docker ps -a --filter name=rockstor-pi5-build
+```
+
+On success the container exits `0` and the installer is
+`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw` (plus `.packages`, `.changes`,
+`.verified`, and `kiwi.result`).
+
 Since the rpi5 comes with a changed architecture and a new chip (BCM2712), it took quite some time to make it work for OpenSUSE.
 Finally, at the end of 2025 openSUSE has started offering the first (Tumbleweed only) rpi5 images that can be written directly to the SD card using `rip imager` and boot them up.
 The (wiki page)[https://en.opensuse.org/HCL:Raspberry_Pi5] is periodically updated with remaining issues and other news related to this porting effort.
