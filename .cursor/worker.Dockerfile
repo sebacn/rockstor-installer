@@ -53,7 +53,7 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh \
         systemd \
         util-linux \
         util-linux-systemd \
-        libpam-pwquality \
+        pam_pwquality \
     && zypper clean --all
 
 # Non-root worker user with passwordless sudo (Cursor convention).

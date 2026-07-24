@@ -8,7 +8,7 @@ TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-/mnt/bdata/kiwi-images-hc4}"
 CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-/mnt/bdata/cache}"
 LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build-odroid-hc4.log}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
-KIWI_PREP_PKGS="util-linux util-linux-systemd libpam-pwquality device-mapper kpartx parted systemd"
+KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 run_root modprobe loop max_part=8 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR"
