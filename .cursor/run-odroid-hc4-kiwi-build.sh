@@ -4,8 +4,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE="${ROCKSTOR_WORKER_IMAGE:-rockstor-worker:arm64}"
 CONTAINER_NAME="${ROCKSTOR_KIWI_CONTAINER:-rockstor-odroid-hc4-build}"
-TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-$HOME/kiwi-images}"
-CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-$TARGET_DIR/.kiwi-package-cache}"
+TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-/mnt/bdata/kiwi-images-hc4}"
+CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-/mnt/bdata/cache}"
 LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build-odroid-hc4.log}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }

@@ -259,8 +259,8 @@ small, point output elsewhere, for example:
 ```shell
 export ROCKSTOR_KIWI_TARGET=/mnt/bdata/kiwi-images
 export ROCKSTOR_KIWI_LOG=/mnt/bdata/kiwi-build.log
-# Optional: persist zypper/kiwi RPM cache across failed builds (default: $ROCKSTOR_KIWI_TARGET/.kiwi-package-cache)
-# export ROCKSTOR_KIWI_CACHE=/mnt/bdata/kiwi-zypper-cache
+# Optional: override zypper/kiwi RPM cache (default: /mnt/bdata/cache)
+# export ROCKSTOR_KIWI_CACHE=/mnt/bdata/cache
 # export ROCKSTOR_KIWI_CLEAR_CACHE=1   # wipe cache before the next build
 ```
 
@@ -287,7 +287,7 @@ The helper script:
 - bind-mounts the repo to `/workspace` and `$ROCKSTOR_KIWI_TARGET` to
   `/home/kiwi-images` (kiwi’s `--target-dir` inside the container);
 - keeps a **shared zypper package cache** on the host (`$ROCKSTOR_KIWI_CACHE` or
-  `$ROCKSTOR_KIWI_TARGET/.kiwi-package-cache`) via kiwi’s `--shared-cache-dir`,
+  `/mnt/bdata/cache` unless overridden) via kiwi’s `--shared-cache-dir`,
   so a retry after `KiwiInstallPhaseFailed` can reuse downloaded RPMs (only
   `build/` and image artifacts are removed each run; set `ROCKSTOR_KIWI_CLEAR_CACHE=1`
   to refresh repository metadata).

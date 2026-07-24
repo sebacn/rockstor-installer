@@ -10,7 +10,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE="${ROCKSTOR_WORKER_IMAGE:-rockstor-worker:arm64}"
 CONTAINER_NAME="${ROCKSTOR_KIWI_CONTAINER:-rockstor-pi5-build}"
 TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-$HOME/kiwi-images}"
-CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-$TARGET_DIR/.kiwi-package-cache}"
+CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-/mnt/bdata/cache}"
 LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build.log}"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 run_root modprobe loop max_part=8 2>/dev/null || true
