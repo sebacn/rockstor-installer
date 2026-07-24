@@ -59,6 +59,8 @@ disk- and CPU-heavy (15 GB+), needs root + loop devices (and boxbuild needs
 
 **Pi5 installer build in Docker on the Pi host:** use `.cursor/run-pi5-kiwi-build.sh`
 after `docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor`.
+**Git push from the Pi:** store `export GIT_USER=…` and `export GIT_PWD=…` (GitHub PAT) in
+`~/.git-auth.env` (`chmod 600`), then run `.cursor/setup-git-auth.sh` before `git push`.
 The script runs a privileged container with `-v /dev:/dev` and `loop max_part=8`
 so kiwi can create `/dev/loop0p1` (otherwise `KiwiMappedDeviceError`). It also
 removes `$ROCKSTOR_KIWI_TARGET/build` before each run (`KiwiRootDirExists`). Set

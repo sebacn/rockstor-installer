@@ -19,6 +19,9 @@ if [[ "${ROCKSTOR_KIWI_CLEAR_CACHE:-0}" == 1 ]]; then
   echo "ROCKSTOR_KIWI_CLEAR_CACHE=1: removing $CACHE_DIR" | run_root tee -a "$LOG" >/dev/null
   run_root rm -rf "$CACHE_DIR"
   run_root mkdir -p "$CACHE_DIR"
+elif [[ "${ROCKSTOR_KIWI_REFRESH_REPOS:-0}" == 1 ]]; then
+  echo "ROCKSTOR_KIWI_REFRESH_REPOS=1: refreshing zypper metadata in $CACHE_DIR" | run_root tee -a "$LOG" >/dev/null
+  run_root rm -rf "$CACHE_DIR/zypper/solv" "$CACHE_DIR/zypper/repos" "$CACHE_DIR/zypper/raw"
 fi
 run_root touch "$LOG"
 run_root chmod 666 "$LOG" 2>/dev/null || run_root chown "$(id -un):$(id -gn)" "$LOG"
