@@ -51,6 +51,9 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh \
         kpartx \
         parted \
         systemd \
+        util-linux \
+        util-linux-systemd \
+        pam_pwquality \
     && zypper clean --all
 
 # Non-root worker user with passwordless sudo (Cursor convention).
