@@ -32,6 +32,6 @@ nohup run_root bash -c "docker run --name '$CONTAINER_NAME' --privileged --cap-a
   -v '$CACHE_DIR:/kiwi-package-cache' \
   -w /workspace \
   '$IMAGE' \
-  sudo bash -c 'zypper --non-interactive in -y device-mapper kpartx parted systemd >/dev/null 2>&1 || true; modprobe loop max_part=8 2>/dev/null || true; exec kiwi-ng --profile=Tumbleweed.RaspberryPi5 --type oem system build --description ./ --target-dir /home/kiwi-images/ --shared-cache-dir=/kiwi-package-cache' \
+  sudo bash -c 'zypper --non-interactive in -y device-mapper kpartx parted systemd >/dev/null 2>&1 || true; modprobe loop max_part=8 2>/dev/null || true; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile=Tumbleweed.RaspberryPi5 --type oem system build --description ./ --target-dir /home/kiwi-images/' \
   >>'$LOG' 2>&1" >/dev/null 2>&1 &
 echo "Started $CONTAINER_NAME (PID $!). Log: $LOG"
