@@ -8,6 +8,7 @@ TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-/mnt/bdata/kiwi-images-hc4}"
 CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-/mnt/bdata/cache}"
 LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build-odroid-hc4.log}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
+KIWI_PREP_PKGS="util-linux util-linux-systemd libpam-pwquality device-mapper kpartx parted systemd"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 run_root modprobe loop max_part=8 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR"
@@ -33,6 +34,6 @@ run_root docker run -d --name "$CONTAINER_NAME" --privileged --cap-add SYS_ADMIN
   -v "$CACHE_DIR:/kiwi-package-cache" \
   -w /workspace \
   "$IMAGE" \
-  sudo bash -c 'set -e; zypper --non-interactive in -y util-linux device-mapper kpartx parted systemd; command -v lsblk >/dev/null; modprobe loop max_part=8 2>/dev/null || true; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"$PROFILE"' --type oem system build --description ./ --target-dir /home/kiwi-images/' \
+  sudo bash -c 'set -e; zypper --non-interactive in -y '"$KIWI_PREP_PKGS"'; command -v lsblk >/dev/null; modprobe loop max_part=8 2>/dev/null || true; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"$PROFILE"' --type oem system build --description ./ --target-dir /home/kiwi-images/' \
   >/dev/null
 echo "Started $CONTAINER_NAME profile=$PROFILE (detached). Log: docker logs -f $CONTAINER_NAME  (or tee $LOG)"
