@@ -24,7 +24,7 @@ The agent runs as the non-root `ubuntu` user with passwordless `sudo`.
   workflows. This is a documented Cursor constraint for non-Ubuntu images.
 
 ### Architecture caveat (arm64 is NOT available on managed Cloud Agents)
-Several profiles are aarch64 (`*.RaspberryPi4/5`, `*.ARM64EFI`). kiwi will refuse
+Several profiles are aarch64 (`*.RaspberryPi4/5`, `Tumbleweed.OdroidHC4`, `*.ARM64EFI`). kiwi will refuse
 them on an x86_64 host, e.g.:
 `KiwiProfileNotFound: profile Leap16.0.ARM64EFI not found for host arch x86_64`.
 Managed Cursor Cloud Agents do not expose a way to select CPU architecture (no

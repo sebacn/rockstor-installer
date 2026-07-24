@@ -42,8 +42,9 @@ Our current pre-built installers are built using the following profiles (see: [D
 - **Tumbleweed.RaspberryPi4**
 - **Tumbleweed.ARM64EFI**
 
-Experimental Profile:
+Experimental Profiles:
 - **Tumbleweed.RaspberryPi5**
+- **Tumbleweed.OdroidHC4** (MBR + U-Boot; Hardkernel ODROID-HC4)
 
 ### RaspberryPi USB boot
 USB booting on the Pi 4 may require a bootloader update via a fully updated Raspberry OS.
@@ -305,6 +306,29 @@ That image can then be written to the SD card using the graphical `rpi-imager` s
 Note: As of May 2026 there is no option to use Rockstor on the jeOS base image using the rpm installation method via zypper. The installation is successful,
 but because the base images uses `ext4` as its file system and not btrfs, Rockstor will not allow for the setup to proceed.
 
+### Tumbleweed.OdroidHC4 profile
+Experimental installer for the [ODROID-HC4](https://wiki.odroid.com/odroid-hc4/start) (Amlogic S905X3). Unlike the Raspberry Pi profiles,
+this uses an **MBR** partition table and **U-Boot** at sector 1 (not EFI/GPT). Kiwi is configured with `firmware="custom"`,
+`force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write the openSUSE **`u-boot-odroid-c4`**
+payload onto the raw image.
+
+Build on **aarch64** openSUSE (or use the Docker helper on arm64 hardware with loop-partition support; see Pi5 Docker section).
+
+```shell
+kiwi-ng --profile=Tumbleweed.OdroidHC4 --type oem system build --description ./ --target-dir /home/kiwi-images/
+```
+
+Or from the repo root:
+
+```shell
+chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
+export ROCKSTOR_KIWI_TARGET=/path/with/15GB+free
+./.cursor/run-odroid-hc4-kiwi-build.sh
+```
+
+The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
+U-Boot and partition layout follow openSUSE/JeOS odroid practice but this profile is not yet part of the upstream Rockstor download matrix.
+
 ## Resulting Rockstor installers
 With the above suggested `kiwi-ng` commands the resulting installers will be found in **/home/kiwi-images/** on the kiwi-ng host systems.
 
@@ -312,6 +336,7 @@ With the above suggested `kiwi-ng` commands the resulting installers will be fou
 Use the file ending in ".iso".
 - For the RaspberryPi 4 and 5 profiles the resulting installer is an uncompressed raw disk image intended for image transfer to the target system disk directly.
 Use the file ending in ".raw".
+- For **Tumbleweed.OdroidHC4** the installer is also a **`.raw`** disk image (MBR + U-Boot).
 
 The resulting installs will grow on first boot to the size of their host devices.
 All partitioning is fully automatic.

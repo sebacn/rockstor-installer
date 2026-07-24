@@ -3,7 +3,7 @@
 # This is NOT the managed Cloud Agent environment (see .cursor/Dockerfile +
 # environment.json for that). It builds a Cursor Self-Hosted Pool *worker* image
 # that runs on your own arm64 hardware (e.g. a Raspberry Pi 5) so kiwi-ng can
-# build the aarch64 profiles (Tumbleweed.RaspberryPi5, *.RaspberryPi4,
+# build the aarch64 profiles (Tumbleweed.RaspberryPi5, Tumbleweed.OdroidHC4, *.RaspberryPi4,
 # *.ARM64EFI) that cannot run on Cursor's managed x86_64 fleet.
 #
 # Build ON arm64 hardware (or cross-build with buildx --platform linux/arm64):
