@@ -199,7 +199,7 @@
         <source path="https://download.opensuse.org/update/tumbleweed/"/>
     </repository>
     <repository type="rpm-md" alias="repo-update" imageinclude="true" profiles="Tumbleweed.RaspberryPi4,Tumbleweed.RaspberryPi5,Tumbleweed.OdroidHC4,Tumbleweed.ARM64EFI">
-        <source path="https://download.opensuse.org/ports/aarch64/update/tumbleweed/"/>
+        <source path="https://cdn.opensuse.org/ports/aarch64/update/tumbleweed/"/>
     </repository>
     <!-- open H264 repos: -->
     <!-- https://news.opensuse.org/2023/01/24/opensuse-simplifies-codec-install/ -->
@@ -217,7 +217,7 @@
         <source path="https://download.opensuse.org/repositories/Virtualization:/Appliances:/Builder/openSUSE_Leap_16.0/"/>
     </repository>
     <repository type="rpm-md" alias="Virtualization_Appliances_Builder" imageinclude="true" profiles="Slowroll.x86_64,Tumbleweed.x86_64,Tumbleweed.RaspberryPi4,Tumbleweed.RaspberryPi5,Tumbleweed.OdroidHC4,Tumbleweed.ARM64EFI">
-        <source path="https://download.opensuse.org/repositories/Virtualization:/Appliances:/Builder/openSUSE_Tumbleweed/"/>
+        <source path="https://cdn.opensuse.org/repositories/Virtualization:/Appliances:/Builder/openSUSE_Tumbleweed/"/>
     </repository>
     <!-- https://osinside.github.io/kiwi/concept_and_workflow/repository_setup.html -->
     <!-- Local-Repository on build host: for pre-installed rockstor package -->
@@ -247,7 +247,7 @@
         <source path="https://download.opensuse.org/repositories/home:/rockstor/openSUSE_Slowroll/"/>
     </repository>
     <repository type="rpm-md" alias="home_rockstor" priority="105" imageinclude="true" profiles="Tumbleweed.x86_64,Tumbleweed.RaspberryPi4,Tumbleweed.RaspberryPi5,Tumbleweed.OdroidHC4,Tumbleweed.ARM64EFI">
-        <source path="https://download.opensuse.org/repositories/home:/rockstor/openSUSE_Tumbleweed/"/>
+        <source path="https://cdn.opensuse.org/repositories/home:/rockstor/openSUSE_Tumbleweed/"/>
     </repository>
     <!-- This repo currently provides: systemd-presets-branding-rockstor -->
     <!-- As per https://en.opensuse.org/Archive:Making_an_openSUSE_based_distribution -->
@@ -260,7 +260,7 @@
         <source path="https://download.opensuse.org/repositories/home:/rockstor:/branches:/Base:/System/openSUSE_Slowroll/"/>
     </repository>
     <repository type="rpm-md" alias="home_rockstor_branches_Base_System" priority="97" imageinclude="true" profiles="Tumbleweed.x86_64,Tumbleweed.RaspberryPi4,Tumbleweed.RaspberryPi5,Tumbleweed.OdroidHC4,Tumbleweed.ARM64EFI">
-        <source path="https://download.opensuse.org/repositories/home:/rockstor:/branches:/Base:/System/openSUSE_Tumbleweed/"/>
+        <source path="https://cdn.opensuse.org/repositories/home:/rockstor:/branches:/Base:/System/openSUSE_Tumbleweed/"/>
     </repository>
     <!-- THE FOLLOWING KERNEL REPOS ARE NOT SUPPORTED. -->
     <!-- Provided here remarked-out for developer convenience only. -->
@@ -309,7 +309,6 @@
         <package name="group(mail)"/>
         <package name="group(wheel)"/>
         <package name="grub2"/>
-        <package name="grub2-arm64-efi" arch="aarch64"/>
         <package name="grub2-branding-upstream"/>
         <package name="grub2-i386-pc" arch="x86_64"/>
         <package name="grub2-snapper-plugin"/>
@@ -374,6 +373,9 @@
         <package name="policycoreutils-python-utils"/>  <!-- 59 pkg 70.4 MB - semanage plus bloat -->
         <package name="selinux-autorelabel"/>  <!-- 1 pkg 28 KB early boot relabelling -->
     </packages>
+    <packages type="image" profiles="Leap16.0.RaspberryPi4,Tumbleweed.RaspberryPi4,Tumbleweed.RaspberryPi5,Leap16.0.ARM64EFI,Tumbleweed.ARM64EFI">
+        <package name="grub2-arm64-efi" arch="aarch64"/>
+    </packages>
     <packages type="image" profiles="Leap16.0.RaspberryPi4,Tumbleweed.RaspberryPi4,Tumbleweed.RaspberryPi5">
         <package name="raspberrypi-eeprom" arch="aarch64"/>
         <package name="raspberrypi-firmware" arch="aarch64"/>
@@ -391,9 +393,6 @@
     </packages>
     <packages type="image" profiles="Tumbleweed.OdroidHC4">
         <package name="u-boot-odroid-c4" arch="aarch64"/>
-    </packages>
-    <packages type="delete" profiles="Tumbleweed.OdroidHC4">
-        <package name="grub2-arm64-efi" arch="aarch64"/>
     </packages>
     <packages type="bootstrap">
         <package name="ca-certificates"/>
