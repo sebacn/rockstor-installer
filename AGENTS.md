@@ -49,8 +49,20 @@ Build + run on the Pi 5 (or cross-build with `buildx --platform linux/arm64`):
 ```
 docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor
 git clone <your-fork>/rockstor-installer.git ~/repo
-agent worker --pool --pool-name rockstor-arm64 --worker-dir ~/repo start
+export CURSOR_API_KEY="<service-account-key>"
+docker run -d --name rockstor-worker --restart unless-stopped \
+  -e CURSOR_API_KEY \
+  -v ~/repo:/home/ubuntu/repo \
+  rockstor-worker:arm64
 ```
+
+The image entrypoint runs `agent worker --pool ... start`. If the container **restarts in a
+loop**, stop it (`docker update --restart=no rockstor-worker && docker stop
+rockstor-worker`), then read logs (`docker logs rockstor-worker`). Common causes: missing
+`CURSOR_API_KEY`, an old image with no entrypoint (bare `bash` exits immediately under
+`--restart`), wrong arch (arm64 image on x86 without emulation), or `--worker-dir` not
+matching the volume mount. Debug once interactively:
+`docker run --rm -it -e CURSOR_API_KEY -v ~/repo:/home/ubuntu/repo rockstor-worker:arm64`.
 
 Pi 5 caveats: 4 cores / 4–8 GB RAM and SD/USB storage are enough to run the
 `agent` process and validate configs, but a *full* `kiwi-ng system build` is

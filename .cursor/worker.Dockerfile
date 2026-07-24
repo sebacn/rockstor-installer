@@ -57,6 +57,22 @@ ENV PATH="/home/ubuntu/.local/bin:${PATH}"
 # symlinks land in /home/ubuntu/.local/bin (the install script supports arm64).
 RUN curl -fsS https://cursor.com/install | bash
 
-# The worker must be started from a pre-cloned repo working dir, e.g.:
-#   git clone https://github.com/<you>/rockstor-installer.git /home/ubuntu/repo
-#   agent worker --pool --pool-name rockstor-arm64 --worker-dir /home/ubuntu/repo start
+COPY worker-entrypoint.sh /usr/local/bin/worker-entrypoint.sh
+USER root
+RUN chmod 755 /usr/local/bin/worker-entrypoint.sh
+USER ubuntu
+
+ENV CURSOR_WORKER_DIR=/home/ubuntu/repo \
+    CURSOR_WORKER_POOL_NAME=rockstor-arm64
+
+ENTRYPOINT ["/usr/local/bin/worker-entrypoint.sh"]
+
+# Example run (arm64 host):
+#   git clone https://github.com/<you>/rockstor-installer.git ~/repo
+#   docker run -d --name rockstor-worker --restart unless-stopped \
+#     -e CURSOR_API_KEY \
+#     -v ~/repo:/home/ubuntu/repo \
+#     rockstor-worker:arm64
+#
+# Or without Docker:
+#   agent worker --pool --pool-name rockstor-arm64 --worker-dir ~/repo start
