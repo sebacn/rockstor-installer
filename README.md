@@ -259,6 +259,9 @@ small, point output elsewhere, for example:
 ```shell
 export ROCKSTOR_KIWI_TARGET=/mnt/bdata/kiwi-images
 export ROCKSTOR_KIWI_LOG=/mnt/bdata/kiwi-build.log
+# Optional: persist zypper/kiwi RPM cache across failed builds (default: $ROCKSTOR_KIWI_TARGET/.kiwi-package-cache)
+# export ROCKSTOR_KIWI_CACHE=/mnt/bdata/kiwi-zypper-cache
+# export ROCKSTOR_KIWI_CLEAR_CACHE=1   # wipe cache before the next build
 ```
 
 **One-time:** build the worker image on the Pi (or `buildx --platform linux/arm64`):
@@ -282,7 +285,12 @@ The helper script:
   can create `/dev/loop0p1` while partitioning the disk image (without this, the build
   fails with `KiwiMappedDeviceError: Device /dev/loop0p1 does not exist`);
 - bind-mounts the repo to `/workspace` and `$ROCKSTOR_KIWI_TARGET` to
-  `/home/kiwi-images` (kiwi’s `--target-dir` inside the container).
+  `/home/kiwi-images` (kiwi’s `--target-dir` inside the container);
+- keeps a **shared zypper package cache** on the host (`$ROCKSTOR_KIWI_CACHE` or
+  `$ROCKSTOR_KIWI_TARGET/.kiwi-package-cache`) via kiwi’s `--shared-cache-dir`,
+  so a retry after `KiwiInstallPhaseFailed` can reuse downloaded RPMs (only
+  `build/` and image artifacts are removed each run; set `ROCKSTOR_KIWI_CLEAR_CACHE=1`
+  to refresh repository metadata).
 
 Monitor progress:
 
@@ -325,6 +333,9 @@ chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
 export ROCKSTOR_KIWI_TARGET=/path/with/15GB+free
 ./.cursor/run-odroid-hc4-kiwi-build.sh
 ```
+
+The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
+(`ROCKSTOR_KIWI_CACHE`, `ROCKSTOR_KIWI_CLEAR_CACHE`; see Pi5 Docker section).
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
 U-Boot and partition layout follow openSUSE/JeOS odroid practice but this profile is not yet part of the upstream Rockstor download matrix.
