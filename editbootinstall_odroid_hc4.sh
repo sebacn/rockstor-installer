@@ -53,3 +53,35 @@ if [ -n "$uboot_bin" ] && [ -f "$uboot_bin" ]; then
 else
     echo "ODROID HC4: WARNING: u-boot.bin not found; image may not boot on hardware" >&2
 fi
+
+# U-Boot image extends past LBA 2048 and destroys kiwi's FAT /boot; recreate it now.
+#------------------------------------------
+boot_part="${devname}"
+if [ -b "${boot_part}" ]; then
+    echo "ODROID HC4: recreating FAT boot on ${boot_part} after U-Boot install"
+    mkfs.vfat -F 32 -n BOOT "${boot_part}"
+    boot_mnt=$(mktemp -d)
+    mount "${boot_part}" "${boot_mnt}"
+    trap 'umount "${boot_mnt}" 2>/dev/null; rmdir "${boot_mnt}" 2>/dev/null' EXIT
+    for f in Image initrd; do
+        if [ -f "${image_root}/boot/${f}" ]; then
+            cp -a "${image_root}/boot/${f}" "${boot_mnt}/"
+        fi
+    done
+    for f in "${image_root}"/boot/Image-* "${image_root}"/boot/initrd-*; do
+        [ -f "$f" ] || continue
+        base=$(basename "$f")
+        [ "$base" = "Image" ] || [ "$base" = "initrd" ] && continue
+        cp -a "$f" "${boot_mnt}/"
+    done
+    if [ -f "${image_root}/boot/extlinux/extlinux.conf" ]; then
+        mkdir -p "${boot_mnt}/extlinux"
+        cp -a "${image_root}/boot/extlinux/extlinux.conf" "${boot_mnt}/extlinux/"
+    fi
+    umount "${boot_mnt}"
+    rmdir "${boot_mnt}"
+    trap - EXIT
+    sync
+else
+    echo "ODROID HC4: WARNING: boot partition ${boot_part} not found; FAT /boot not rebuilt" >&2
+fi
