@@ -319,14 +319,22 @@ Experimental installer for the [ODROID-HC4](https://wiki.odroid.com/odroid-hc4/s
 this uses an **MBR** partition table and **U-Boot** at sector 1 (not EFI/GPT). Kiwi is configured with `firmware="custom"`,
 `force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write U-Boot onto the raw disk.
 
-The bootloader comes from the openSUSE Tumbleweed **`u-boot-odroid-c4`** package (same pre-built image used on openSUSE JeOS for ODROID-C4/HC4).
-Kiwi installs it from the [Tumbleweed aarch64 ports repositories](https://cdn.opensuse.org/ports/aarch64/tumbleweed/repo/oss/).
-For offline builds or to patch an existing image root, run `scripts/fetch-uboot-odroid-hc4.sh`, which downloads the RPM from
-`cdn.opensuse.org` and copies `boot/u-boot.bin` into the kiwi overlay at `root/boot/u-boot.bin` (gitignored).
-Override the RPM with `RPM_URL=...` if needed. `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
+The bootloader is pre-built (no local compile). Default source is openSUSE Tumbleweed **`u-boot-odroid-c4`**
+(U-Boot 2026.01, `odroid-c4/hc4`). Kiwi installs it from the [Tumbleweed aarch64 ports repositories](https://cdn.opensuse.org/ports/aarch64/tumbleweed/repo/oss/).
+
+**Armbian (recommended for HC4 hardware):** set `ROCKSTOR_UBOOT_SOURCE=armbian` before the fetch script or HC4 Docker build.
+`scripts/fetch-uboot-odroid-hc4.sh` then downloads the latest **`linux-u-boot-odroidhc4-current`** `.deb` from Armbian
+(e.g. `https://fi.mirror.armbian.de/beta/pool/main/l/linux-u-boot-odroidhc4-current/`), extracts
+`usr/lib/linux-u-boot-current-odroidhc4/u-boot.bin` (mainline **`odroid-hc4_defconfig`**, U-Boot 2026.04+, DT
+**`amlogic/meson-sm1-odroid-hc4.dtb`**). Pin a specific package with `ARMBIAN_UBOOT_DEB_URL=...`.
+`editbootinstall_odroid_hc4.sh` writes the image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
+
+For offline builds or overlay-only installs, run `scripts/fetch-uboot-odroid-hc4.sh` (openSUSE RPM when `ROCKSTOR_UBOOT_SOURCE=opensuse`,
+or Armbian as above). Result: `root/boot/u-boot.bin` (gitignored). Override openSUSE RPM with `RPM_URL=...`.
+`scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 
 Set `ROCKSTOR_SKIP_UBOOT_BUILD=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if you do not need the overlay copy
-(the image still gets U-Boot from the RPM via kiwi).
+(the image still gets U-Boot from the RPM via kiwi when using the openSUSE source).
 
 Build on **aarch64** openSUSE (or use the Docker helper on arm64 hardware with loop-partition support; see Pi5 Docker section).
 

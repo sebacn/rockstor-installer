@@ -48,12 +48,12 @@ if command -v gdisk >/dev/null 2>&1 && gdisk -l "$loopdev" 2>/dev/null | grep -q
     rm -f mbrid.bin gdisk.tmp
 fi
 
-#==========================================
-# Install U-Boot at sector 1 (whole disk, not the FAT boot partition)
+# Install U-Boot on whole disk (Armbian / openSUSE SD images: 442 bytes @0 + payload @sector 1).
 #------------------------------------------
 if [ -n "$uboot_bin" ] && [ -f "$uboot_bin" ]; then
-    echo "ODROID HC4: writing U-Boot from ${uboot_bin} to ${loopdev} (seek=1)"
-    dd if="$uboot_bin" of="$loopdev" conv=fsync,notrunc bs=512 seek=1
+    echo "ODROID HC4: writing U-Boot from ${uboot_bin} to ${loopdev}"
+    dd if="$uboot_bin" of="$loopdev" conv=fsync,notrunc bs=1 count=442
+    dd if="$uboot_bin" of="$loopdev" conv=fsync,notrunc bs=512 skip=1 seek=1
 else
     echo "ODROID HC4: WARNING: u-boot.bin not found; image may not boot on hardware" >&2
 fi
