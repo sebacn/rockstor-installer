@@ -57,6 +57,15 @@ baseRemoveService apparmor
 baseInsertService sshd
 baseInsertService grub_config
 baseInsertService dracut_hostonly
+# HC4 boots from on-board SD (meson_gx_mmc); hostonly initrds from qemu builds omit auto-load.
+if [[ "${kiwi_profiles:-}${kiwi_profile:-}" == *OdroidHC4* ]]; then
+	baseRemoveService dracut_hostonly
+	mkdir -p /etc/dracut.conf.d
+	cat >/etc/dracut.conf.d/rockstor-odroid-hc4.conf <<'EOF'
+add_drivers+=" mmc_core meson_gx_mmc mmc_block btrfs "
+hostonly="no"
+EOF
+fi
 baseInsertService jeos-firstboot
 baseInsertService NetworkManager
 

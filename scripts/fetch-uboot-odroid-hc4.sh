@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fetch pre-built U-Boot for ODROID-HC4 (default: Armbian linux-u-boot-odroidhc4-current; optional openSUSE RPM).
+# Fetch pre-built U-Boot for ODROID-HC4 (default: Armbian; needs FAT @ LBA 8192).
+# Optional openSUSE RPM only for legacy disks with FAT @ 2048.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

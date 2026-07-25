@@ -120,7 +120,7 @@
         <bootsplash-theme>upstream</bootsplash-theme>
         <bootloader-theme>rockstor</bootloader-theme>
         <!-- MBR + U-Boot at sector 1; FAT /boot; btrfs root (not EFI/GPT like Raspberry Pi 5). -->
-        <type image="oem" initrd_system="dracut" filesystem="btrfs" fsmountoptions="noatime,compress=lzo" firmware="custom" force_mbr="true" kernelcmdline="plymouth.enable=0 rd.kiwi.oem.maxdisk=5000G console=ttyAML0,115200n8 console=tty0" bootpartition="true" bootpartsize="512" bootfilesystem="fat32" devicepersistency="by-uuid" btrfs_root_is_subvolume="true" btrfs_root_is_snapper_snapshot="true" btrfs_quota_groups="false" editbootinstall="editbootinstall_odroid_hc4.sh">
+        <type image="oem" initrd_system="dracut" filesystem="btrfs" fsmountoptions="noatime,compress=lzo" firmware="custom" force_mbr="true" disk_start_sector="8192" kernelcmdline="plymouth.enable=0 rd.kiwi.oem.maxdisk=5000G console=ttyAML0,115200n8 console=tty0 rd.driver.pre=mmc_core rd.driver.pre=meson_gx_mmc rd.driver.pre=mmc_block rootwait" bootpartition="true" bootpartsize="512" bootfilesystem="fat32" devicepersistency="by-uuid" btrfs_root_is_subvolume="true" btrfs_root_is_snapper_snapshot="true" btrfs_quota_groups="false" editbootinstall="editbootinstall_odroid_hc4.sh">
             <bootloader name="grub2" bls="false"/>
             <systemdisk>
                 <volume name="home"/>
@@ -135,6 +135,7 @@
                 <oem-swap>true</oem-swap>
                 <oem-swapsize>2048</oem-swapsize>
                 <oem-skip-verify>true</oem-skip-verify>
+                <oem-resize-once>true</oem-resize-once>
             </oemconfig>
         </type>
     </preferences>

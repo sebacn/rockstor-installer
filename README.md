@@ -327,6 +327,14 @@ Pin a package with `ARMBIAN_UBOOT_DEB_URL=...`. Legacy openSUSE RPM fetch: `ROCK
 Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`; openSUSE build host: install `dpkg`).
 `editbootinstall_odroid_hc4.sh` writes the disk image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
 
+**Linux device tree on FAT /boot:** Armbian/U-Boot DT lists the SD slot as `amlogic,meson-sm1-mmc`, but openSUSE **`meson_gx_mmc`** does not bind that compatible (only gx/gxl/gxm/gxbb/axg). Without an explicit DTB, serial logs may show **Machine model: ODROID-C4**, no `mmcblk*`, and dracut waiting forever on the btrfs root UUID. **`scripts/build-hc4-linux-dtb.sh`** extracts the HC4 DT from the Armbian U-Boot image, retargets the MMC nodes to **`amlogic,meson-gxl-mmc`**, and installs **`root/boot/odroid-hc4.dtb`**. **`root/boot/extlinux/extlinux.conf`** loads it via **`fdt /odroid-hc4.dtb`**. Refresh an existing SD with **`sudo scripts/refresh-hc4-boot-partition.sh /dev/sdX`**.
+
+**Btrfs / Snapper root subvolume:** Kiwi HC4 images use Snapper; the installed OS lives under **`@/.snapshots/1/snapshot`**, not the empty **`@`** subvolume. extlinux must use **`rootflags=subvol=@/.snapshots/1/snapshot`** (not `subvol=@`), or `switch_root` fails with *os-release file is missing* even when `mmcblk0p3` mounts. Do not set the btrfs default subvolume to bare `@` on migrated cards.
+
+**DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** drops the GPIO line from always-on **`regulator-vcc-5v`** and **`vin-supply`** on **`gpio-regulator-tf-io`** so a failed 5V GPIO probe does not defer **`ffe05000.mmc`** (do not remove MMC **`vmmc-supply`/`vqmmc-supply`** — that breaks SD voltage negotiation). Initrd includes a pre-mount retry hook for deferred MMC bind.
+
+**DTB LAN (`end0`):** The external RTL8211 PHY sits on the G12A MDIO mux; **`reset-gpios`** / **`regulator-p12v-*` GPIO** can fail with **`-EPERM`** so **`g12a-mdio_mux`** never registers and **`end0`** logs *cannot attach to PHY*. The patched DTB removes those GPIO hooks, disables unused internal **`mdio@1`**, and drops duplicate **`snps,reset-*`** on **`ethernet@ff3f0000`**.
+
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 
@@ -349,6 +357,22 @@ The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
 U-Boot is the Armbian pre-built **`linux-u-boot-odroidhc4-current`** package; partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
+
+#### HC4 boot loop: `BL33 CHK: 0xfffffff0` then `reset...`
+
+The Amlogic mask ROM loads DDR firmware and BL33 (U-Boot) from the **boot medium** (microSD or eMMC). That message means BL33 failed verification and the board resets in a loop—Linux never starts.
+
+1. **Boot medium** — Flash the `.raw` to **HC4 microSD** or **eMMC**, not a SATA disk. SATA drives are for data only. After `dd`, re-apply U-Boot on the card:
+   ```shell
+   chmod +x scripts/write-uboot-odroid-hc4-to-disk.sh
+   sudo ./scripts/write-uboot-odroid-hc4-to-disk.sh /dev/mmcblk0   # or your SD device
+   ```
+2. **SPI flash** — If Petitboot or an old U-Boot is still in SPI, SD boot can fail or loop. Power off, insert only the SD card, hold the **recovery button** on the bottom while powering on to force SD boot. From a working Armbian/Ubuntu on HC4, erase SPI: `sudo flash_eraseall /dev/mtd0`, or install SPI U-Boot from the Armbian package (`u-boot-spi.bin` via `flashcp`, same as Armbian `nand-sata-install` → update bootloader on SPI).
+3. **First boot** — Try **no SATA drives** attached until the installer boots once.
+4. **Sanity check** — Confirm a current [Armbian HC4 image](https://www.armbian.com/odroid-hc4/) boots on the same board; if not, fix SPI/hardware before the Rockstor image.
+5. **Pin U-Boot** — If a new Armbian `linux-u-boot-odroidhc4-current` package misbehaves, set `ARMBIAN_UBOOT_DEB_URL` to an older `.deb` when running `scripts/fetch-uboot-odroid-hc4.sh`, rebuild or re-run `write-uboot-odroid-hc4-to-disk.sh`.
+
+Hardkernel’s layout reserves sectors **1–1919** for U-Boot; current Armbian `u-boot.bin` is larger and overlaps the FAT partition at LBA 2048—the post-`dd` U-Boot write must be the **last** step on the card (the kiwi image already does this once).
 
 ## Resulting Rockstor installers
 With the above suggested `kiwi-ng` commands the resulting installers will be found in **/home/kiwi-images/** on the kiwi-ng host systems.
