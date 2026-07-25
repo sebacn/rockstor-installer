@@ -24,7 +24,9 @@ _expand_hc4_root_partition() {
 	mnt=$(mktemp -d)
 	if mount "$root_part" "$mnt" 2>/dev/null; then
 		btrfs filesystem resize max "$mnt" || true
-		if btrfs subvolume list "$mnt" | grep -q 'path @'; then
+		if btrfs subvolume list "$mnt" | grep -q 'path @/.snapshots/1/snapshot'; then
+			btrfs subvolume set-default "$mnt/@/.snapshots/1/snapshot" 2>/dev/null || true
+		elif btrfs subvolume list "$mnt" | grep -q 'path @'; then
 			btrfs subvolume set-default "$mnt/@" 2>/dev/null || true
 		fi
 		umount "$mnt"
