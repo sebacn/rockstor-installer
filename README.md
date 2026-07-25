@@ -333,6 +333,8 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 
 **DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** drops the GPIO line from always-on **`regulator-vcc-5v`** and **`vin-supply`** on **`gpio-regulator-tf-io`** so a failed 5V GPIO probe does not defer **`ffe05000.mmc`** (do not remove MMC **`vmmc-supply`/`vqmmc-supply`** — that breaks SD voltage negotiation). Initrd includes a pre-mount retry hook for deferred MMC bind.
 
+**DTB LAN (`end0`):** The external RTL8211 PHY sits on the G12A MDIO mux; **`reset-gpios`** / **`regulator-p12v-*` GPIO** can fail with **`-EPERM`** so **`g12a-mdio_mux`** never registers and **`end0`** logs *cannot attach to PHY*. The patched DTB removes those GPIO hooks, disables unused internal **`mdio@1`**, and drops duplicate **`snps,reset-*`** on **`ethernet@ff3f0000`**.
+
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 

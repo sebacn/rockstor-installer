@@ -55,6 +55,28 @@ if fdtget "$work" /gpio-regulator-tf-io compatible &>/dev/null; then
 	fdtput -d "$work" /gpio-regulator-tf-io vin-supply 2>/dev/null || true
 fi
 
+# LAN (RTL8211F on RGMII): MDIO mux fails when PHY reset GPIO or p12v regulator GPIO
+# probe as -EPERM; end0 then has no PHY. Drop redundant resets / always-on GPIO enables.
+for node in /regulator-p12v-0 /regulator-p12v-1; do
+	if fdtget "$work" "$node" compatible &>/dev/null; then
+		fdtput -d "$work" "$node" gpio 2>/dev/null || true
+	fi
+done
+EXT_PHY="/soc/bus@ff600000/mdio-multiplexer@4c000/mdio@0/ethernet-phy@0"
+if fdtget "$work" "$EXT_PHY" reg &>/dev/null; then
+	fdtput -d "$work" "$EXT_PHY" reset-gpios 2>/dev/null || true
+fi
+INT_MDIO="/soc/bus@ff600000/mdio-multiplexer@4c000/mdio@1"
+if fdtget "$work" "$INT_MDIO" reg &>/dev/null; then
+	fdtput -t s "$work" "$INT_MDIO" status "disabled"
+fi
+ETHMAC="/soc/ethernet@ff3f0000"
+if fdtget "$work" "$ETHMAC" compatible &>/dev/null; then
+	fdtput -d "$work" "$ETHMAC" snps,reset-gpio 2>/dev/null || true
+	fdtput -d "$work" "$ETHMAC" snps,reset-delays-us 2>/dev/null || true
+	fdtput -d "$work" "$ETHMAC" snps,reset-active-low 2>/dev/null || true
+fi
+
 mkdir -p "$(dirname "$DEST")"
 cp "$work" "$DEST"
 echo "build-hc4-linux-dtb: wrote ${DEST} (mmc compat -> meson-gxl-mmc for meson_gx_mmc)"
