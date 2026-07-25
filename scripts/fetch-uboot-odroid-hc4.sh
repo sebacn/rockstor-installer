@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Fetch pre-built U-Boot for ODROID-HC4 (default: openSUSE RPM fits before FAT @ LBA 2048;
-# optional Armbian deb is larger — use only if boot partition starts at LBA 8192+).
+# Fetch pre-built U-Boot for ODROID-HC4 (default: Armbian; needs FAT @ LBA 8192).
+# Optional openSUSE RPM only for legacy disks with FAT @ 2048.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="${ROCKSTOR_UBOOT_SOURCE:-opensuse}"
+SOURCE="${ROCKSTOR_UBOOT_SOURCE:-armbian}"
 FETCH_DIR="${REPO_ROOT}/.build/uboot-odroid-hc4-fetch"
 DEST="${REPO_ROOT}/root/boot/u-boot.bin"
 STYLE_FILE="${REPO_ROOT}/root/boot/.uboot-install-style"
