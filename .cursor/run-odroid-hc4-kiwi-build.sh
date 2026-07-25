@@ -12,7 +12,7 @@ KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 run_root modprobe loop max_part=8 2>/dev/null || true
 run_root sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 2>/dev/null || true
-run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR"
+run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR" "$TARGET_DIR/tmp"
 if [[ "${ROCKSTOR_KIWI_CLEAR_CACHE:-0}" == 1 ]]; then
   echo "ROCKSTOR_KIWI_CLEAR_CACHE=1: removing $CACHE_DIR" | run_root tee -a "$LOG" >/dev/null
   run_root rm -rf "$CACHE_DIR"
@@ -35,8 +35,9 @@ run_root docker run -d --name "$CONTAINER_NAME" --privileged --cap-add SYS_ADMIN
   -v "$REPO_ROOT:/workspace" \
   -v "$TARGET_DIR:/home/kiwi-images" \
   -v "$CACHE_DIR:/kiwi-package-cache" \
+  -e TMPDIR=/home/kiwi-images/tmp \
   -w /workspace \
   "$IMAGE" \
-  sudo bash -c 'set -e; zypper --non-interactive in -y '"$KIWI_PREP_PKGS"'; command -v lsblk >/dev/null; modprobe loop max_part=8 2>/dev/null || true; sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 >/dev/null 2>&1 || true; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"$PROFILE"' --type oem system build --description ./ --target-dir /home/kiwi-images/' \
+  sudo bash -c 'set -e; mkdir -p /home/kiwi-images/tmp; zypper --non-interactive in -y '"$KIWI_PREP_PKGS"'; command -v lsblk >/dev/null; modprobe loop max_part=8 2>/dev/null || true; sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 >/dev/null 2>&1 || true; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"$PROFILE"' --type oem system build --description ./ --target-dir /home/kiwi-images/' \
   >/dev/null
 echo "Started $CONTAINER_NAME profile=$PROFILE (detached). Log: docker logs -f $CONTAINER_NAME  (or tee $LOG)"

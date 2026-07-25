@@ -35,19 +35,25 @@ if [[ -e /etc/selinux/config ]]; then
 fi
 
 #======================================
-# Kernel HMAC symlinks -> regular files before kiwi disk sync
+# Symlinks -> regular files before kiwi disk sync (Docker rsync EPERM)
+# Skip directory targets — copying them balloons the chroot and fills /var/tmp during sync.
 #--------------------------------------
-# In Docker on some hosts, rsync fails with EPERM creating .Image*.hmac symlinks
-# (kernel protected_symlinks / mount_manager staging). Copy targets in-tree.
-for search_root in /usr/lib/modules /boot; do
+materialize_symlink() {
+    local link=$1
+    [[ -n "$link" && -L "$link" ]] || return 0
+    local target
+    target=$(readlink -f "$link" 2>/dev/null || true)
+    if [[ -z "$target" || ! -f "$target" ]]; then
+        return 0
+    fi
+    rm -f "$link"
+    cp -a "$target" "$link"
+    echo "-- materialized symlink: $link"
+}
+
+for search_root in /boot /usr/lib/modules; do
     [[ -d "$search_root" ]] || continue
-    find "$search_root" -type l -name '.Image*.hmac' 2>/dev/null | while IFS= read -r link; do
-        [[ -n "$link" && -L "$link" ]] || continue
-        target=$(readlink -f "$link" 2>/dev/null || true)
-        if [[ -n "$target" && -f "$target" ]]; then
-            rm -f "$link"
-            cp -a "$target" "$link"
-            echo "-- materialized kernel hmac: $link"
-        fi
+    find "$search_root" -type l 2>/dev/null | while IFS= read -r link; do
+        materialize_symlink "$link"
     done
 done
