@@ -391,9 +391,6 @@
         <!-- For WiFi: -->
         <package name="kernel-firmware-brcm"/>
     </packages>
-    <packages type="image" profiles="Tumbleweed.OdroidHC4">
-        <package name="u-boot-odroid-c4" arch="aarch64"/>
-    </packages>
     <packages type="bootstrap">
         <package name="ca-certificates"/>
         <!-- https://github.com/OSInside/kiwi/issues/776#issuecomment-403724943 -->

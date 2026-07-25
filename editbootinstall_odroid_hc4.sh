@@ -14,7 +14,8 @@ loopdev=${loopname#/dev/mapper/*}
 image_root="$(pwd)"
 
 #==========================================
-# Locate U-Boot image (openSUSE: u-boot-odroid-c4, shared g12a family with HC4)
+# Locate signed mainline U-Boot (kiwi overlay: root/boot/u-boot.bin from build script)
+# Optional fallbacks: legacy openSUSE u-boot-odroid-c4 package paths
 #------------------------------------------
 uboot_bin=""
 for candidate in \
@@ -25,7 +26,7 @@ for candidate in \
         break
     fi
 done
-if [ -z "$uboot_bin" ] && rpm --root "$image_root" -q u-boot-odroid-c4 >/dev/null 2>&1; then
+if [ -z "$uboot_bin" ] && command -v rpm >/dev/null 2>&1 && rpm --root "$image_root" -q u-boot-odroid-c4 >/dev/null 2>&1; then
     uboot_bin=$(rpm --root "$image_root" -ql u-boot-odroid-c4 | grep -E '/u-boot\.bin$' | head -1 || true)
 fi
 

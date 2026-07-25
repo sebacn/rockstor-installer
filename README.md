@@ -317,8 +317,19 @@ but because the base images uses `ext4` as its file system and not btrfs, Rockst
 ### Tumbleweed.OdroidHC4 profile
 Experimental installer for the [ODROID-HC4](https://wiki.odroid.com/odroid-hc4/start) (Amlogic S905X3). Unlike the Raspberry Pi profiles,
 this uses an **MBR** partition table and **U-Boot** at sector 1 (not EFI/GPT). Kiwi is configured with `firmware="custom"`,
-`force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write the openSUSE **`u-boot-odroid-c4`**
-payload onto the raw image.
+`force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write a **mainline U-Boot** image onto the raw disk.
+The bootloader is **not** taken from an RPM: build it once with `scripts/build-uboot-odroid-hc4.sh`, which compiles
+[U-Boot](https://github.com/u-boot/u-boot) tag `v2026.01` (`odroid-hc4_defconfig`) and signs the image with
+[LibreELEC amlogic-boot-fip](https://github.com/LibreELEC/amlogic-boot-fip). The result is copied to `root/boot/u-boot.bin`
+in the kiwi description overlay (gitignored).
+
+**U-Boot build host dependencies** (openSUSE Tumbleweed examples in parentheses):
+
+- `git`, `make`, `bc`, `bison`, `flex`, `openssl-devel`, `python3`, `dtc` (`git`, `make`, `bc`, `bison`, `flex`, `libopenssl-devel`, `python3`, `dtc`)
+- Cross toolchain: `gcc-aarch64` / `cross-aarch64-gcc` or `gcc-aarch64-none-elf` (`cross-aarch64-gcc12` or `gcc-aarch64-none-elf`)
+- On **non-x86_64** hosts, `qemu-x86_64` is required because `aml_encrypt_g12a` is an x86_64 binary (`qemu-linux-user` on openSUSE; `qemu-user-static` on Debian)
+
+Set `ROCKSTOR_SKIP_UBOOT_BUILD=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already built.
 
 Build on **aarch64** openSUSE (or use the Docker helper on arm64 hardware with loop-partition support; see Pi5 Docker section).
 
@@ -338,7 +349,7 @@ The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
 (`ROCKSTOR_KIWI_CACHE`, `ROCKSTOR_KIWI_CLEAR_CACHE`; see Pi5 Docker section).
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
-U-Boot and partition layout follow openSUSE/JeOS odroid practice but this profile is not yet part of the upstream Rockstor download matrix.
+U-Boot follows upstream mainline + LibreELEC FIP; partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
 
 ## Resulting Rockstor installers
 With the above suggested `kiwi-ng` commands the resulting installers will be found in **/home/kiwi-images/** on the kiwi-ng host systems.

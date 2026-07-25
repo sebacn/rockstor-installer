@@ -52,3 +52,6 @@ kiwi-env/
 # kiwi-ng build output
 kiwi-images/
 images/
+
+# Mainline ODROID-HC4 U-Boot (built by scripts/build-uboot-odroid-hc4.sh)
+root/boot/u-boot.bin
