@@ -67,6 +67,23 @@ EOF
 chmod 0755 "$PRE_UDEV_DIR/99-rockstor-hc4-sd-mmc.sh"
 echo "initrd: installed pre-udev HC4 SD/MMC modprobe hook"
 
+PRE_MOUNT_DIR="$WORK/var/lib/dracut/hooks/pre-mount"
+mkdir -p "$PRE_MOUNT_DIR"
+cat >"$PRE_MOUNT_DIR/99-rockstor-hc4-mmc-deferred-reprobe.sh" <<'EOF'
+#!/bin/sh
+# If regulator deferral blocked ffe05000.mmc, retry bind before root mount wait ends.
+type sleep >/dev/null 2>&1 || exit 0
+[ -d /sys/bus/platform/devices/ffe05000.mmc ] || exit 0
+[ -e /dev/mmcblk0 ] && exit 0
+sleep 3
+if [ -d /sys/bus/platform/drivers/meson-gx-mmc ] && [ ! -e /sys/bus/platform/devices/ffe05000.mmc/driver ]; then
+	echo ffe05000.mmc > /sys/bus/platform/drivers/meson-gx-mmc/bind 2>/dev/null || true
+fi
+modprobe mmc_block 2>/dev/null || true
+EOF
+chmod 0755 "$PRE_MOUNT_DIR/99-rockstor-hc4-mmc-deferred-reprobe.sh"
+echo "initrd: installed pre-mount HC4 MMC deferred-probe retry hook"
+
 REPART_HOOK="$WORK/var/lib/dracut/hooks/pre-mount/20-kiwi-repart-disk.sh"
 if [[ -f "$REPART_HOOK" ]]; then
 	mv -f "$REPART_HOOK" "${REPART_HOOK}.disabled-by-rockstor-hc4"

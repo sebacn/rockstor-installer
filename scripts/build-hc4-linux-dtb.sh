@@ -46,6 +46,17 @@ for node in /soc/mmc@ffe03000 /soc/mmc@ffe05000; do
 	fi
 done
 
+# SD slot (ffe05000): vqmmc-supply -> gpio-regulator-tf-io -> regulator-vcc-5v (GPIO -EPERM
+# on some boots) leaves meson_gx_mmc deferred forever. U-Boot already powers the card.
+if fdtget "$work" /soc/mmc@ffe05000 compatible &>/dev/null; then
+	fdtput -d "$work" /soc/mmc@ffe05000 vmmc-supply vqmmc-supply 2>/dev/null || true
+fi
+
+# regulator-vcc-5v is always-on; dropping GPIO avoids -EPERM blocking TF I/O regulator.
+if fdtget "$work" /regulator-vcc-5v compatible &>/dev/null; then
+	fdtput -d "$work" /regulator-vcc-5v gpio 2>/dev/null || true
+fi
+
 mkdir -p "$(dirname "$DEST")"
 cp "$work" "$DEST"
 echo "build-hc4-linux-dtb: wrote ${DEST} (mmc compat -> meson-gxl-mmc for meson_gx_mmc)"
