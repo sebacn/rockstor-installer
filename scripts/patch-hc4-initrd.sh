@@ -53,6 +53,20 @@ EOF
 chmod 0755 "$HOOK_DIR/99-rockstor-serial-diagnostics.sh"
 echo "initrd: installed emergency serial diagnostics hook"
 
+PRE_UDEV_DIR="$WORK/var/lib/dracut/hooks/pre-udev"
+mkdir -p "$PRE_UDEV_DIR"
+cat >"$PRE_UDEV_DIR/99-rockstor-hc4-sd-mmc.sh" <<'EOF'
+#!/bin/sh
+# HC4 root is on microSD (Amlogic meson-gx-mmc). Kiwi/dracut hostonly builds often
+# never modprobe this on real hardware, so root=UUID waits forever with no block devs.
+type modprobe >/dev/null 2>&1 || exit 0
+for _m in mmc_core meson_gx_mmc mmc_block; do
+	modprobe "$_m" 2>/dev/null || true
+done
+EOF
+chmod 0755 "$PRE_UDEV_DIR/99-rockstor-hc4-sd-mmc.sh"
+echo "initrd: installed pre-udev HC4 SD/MMC modprobe hook"
+
 REPART_HOOK="$WORK/var/lib/dracut/hooks/pre-mount/20-kiwi-repart-disk.sh"
 if [[ -f "$REPART_HOOK" ]]; then
 	mv -f "$REPART_HOOK" "${REPART_HOOK}.disabled-by-rockstor-hc4"
