@@ -50,7 +50,7 @@ mkfs.vfat -F 32 -n BOOT "${BOOT_PART}"
 mnt=$(mktemp -d)
 mount "${BOOT_PART}" "$mnt"
 cp "${src_dir}/Image" "${src_dir}/initrd" "$mnt/"
-"${REPO_ROOT}/scripts/patch-hc4-initrd-oem-resize-once.sh" "$mnt/initrd"
+"${REPO_ROOT}/scripts/patch-hc4-initrd.sh" "$mnt/initrd"
 extlinux_src="${REPO_ROOT}/root/boot/extlinux/extlinux.conf"
 if [[ -f "${extlinux_src}" ]]; then
 	mkdir -p "$mnt/extlinux"

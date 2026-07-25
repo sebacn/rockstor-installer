@@ -141,6 +141,7 @@ mkfs.vfat -F 32 -n BOOT "$P1"
 mnt=$(mktemp -d)
 mount "$P1" "$mnt"
 cp "${BOOT_SRC}/Image" "${BOOT_SRC}/initrd" "$mnt/"
+"${REPO_ROOT}/scripts/patch-hc4-initrd.sh" "$mnt/initrd"
 mkdir -p "$mnt/extlinux"
 cp "${REPO_ROOT}/root/boot/extlinux/extlinux.conf" "$mnt/extlinux/"
 sync
