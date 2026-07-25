@@ -350,6 +350,22 @@ The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
 U-Boot is the Armbian pre-built **`linux-u-boot-odroidhc4-current`** package; partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
 
+#### HC4 boot loop: `BL33 CHK: 0xfffffff0` then `reset...`
+
+The Amlogic mask ROM loads DDR firmware and BL33 (U-Boot) from the **boot medium** (microSD or eMMC). That message means BL33 failed verification and the board resets in a loop—Linux never starts.
+
+1. **Boot medium** — Flash the `.raw` to **HC4 microSD** or **eMMC**, not a SATA disk. SATA drives are for data only. After `dd`, re-apply U-Boot on the card:
+   ```shell
+   chmod +x scripts/write-uboot-odroid-hc4-to-disk.sh
+   sudo ./scripts/write-uboot-odroid-hc4-to-disk.sh /dev/mmcblk0   # or your SD device
+   ```
+2. **SPI flash** — If Petitboot or an old U-Boot is still in SPI, SD boot can fail or loop. Power off, insert only the SD card, hold the **recovery button** on the bottom while powering on to force SD boot. From a working Armbian/Ubuntu on HC4, erase SPI: `sudo flash_eraseall /dev/mtd0`, or install SPI U-Boot from the Armbian package (`u-boot-spi.bin` via `flashcp`, same as Armbian `nand-sata-install` → update bootloader on SPI).
+3. **First boot** — Try **no SATA drives** attached until the installer boots once.
+4. **Sanity check** — Confirm a current [Armbian HC4 image](https://www.armbian.com/odroid-hc4/) boots on the same board; if not, fix SPI/hardware before the Rockstor image.
+5. **Pin U-Boot** — If a new Armbian `linux-u-boot-odroidhc4-current` package misbehaves, set `ARMBIAN_UBOOT_DEB_URL` to an older `.deb` when running `scripts/fetch-uboot-odroid-hc4.sh`, rebuild or re-run `write-uboot-odroid-hc4-to-disk.sh`.
+
+Hardkernel’s layout reserves sectors **1–1919** for U-Boot; current Armbian `u-boot.bin` is larger and overlaps the FAT partition at LBA 2048—the post-`dd` U-Boot write must be the **last** step on the card (the kiwi image already does this once).
+
 ## Resulting Rockstor installers
 With the above suggested `kiwi-ng` commands the resulting installers will be found in **/home/kiwi-images/** on the kiwi-ng host systems.
 
