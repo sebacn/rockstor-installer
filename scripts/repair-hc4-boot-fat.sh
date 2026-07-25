@@ -43,14 +43,14 @@ mkfs.vfat -F 32 -n BOOT "${BOOT_PART}"
 
 mnt=$(mktemp -d)
 mount "${BOOT_PART}" "$mnt"
-cp -a "${src_dir}/Image" "${src_dir}/initrd" "$mnt/"
+cp "${src_dir}/Image" "${src_dir}/initrd" "$mnt/"
 extlinux_src="${REPO_ROOT}/root/boot/extlinux/extlinux.conf"
 if [[ -f "${extlinux_src}" ]]; then
 	mkdir -p "$mnt/extlinux"
-	cp -a "${extlinux_src}" "$mnt/extlinux/"
+	cp "${extlinux_src}" "$mnt/extlinux/"
 elif [[ -f "${src_dir}/extlinux/extlinux.conf" ]]; then
 	mkdir -p "$mnt/extlinux"
-	cp -a "${src_dir}/extlinux/extlinux.conf" "$mnt/extlinux/"
+	cp "${src_dir}/extlinux/extlinux.conf" "$mnt/extlinux/"
 fi
 sync
 umount "$mnt"
