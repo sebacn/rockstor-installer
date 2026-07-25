@@ -33,3 +33,27 @@ if [[ -e /etc/selinux/config ]]; then
         echo "-- /config.bootoptions updated -----"
     fi
 fi
+
+#======================================
+# Symlinks -> regular files before kiwi disk sync (Docker rsync EPERM)
+# Skip directory targets — copying them balloons the chroot and fills /var/tmp during sync.
+#--------------------------------------
+materialize_symlink() {
+    local link=$1
+    [[ -n "$link" && -L "$link" ]] || return 0
+    local target
+    target=$(readlink -f "$link" 2>/dev/null || true)
+    if [[ -z "$target" || ! -f "$target" ]]; then
+        return 0
+    fi
+    rm -f "$link"
+    cp -a "$target" "$link"
+    echo "-- materialized symlink: $link"
+}
+
+for search_root in /boot /usr/lib/modules; do
+    [[ -d "$search_root" ]] || continue
+    find "$search_root" -type l 2>/dev/null | while IFS= read -r link; do
+        materialize_symlink "$link"
+    done
+done
