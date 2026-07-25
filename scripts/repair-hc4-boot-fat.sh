@@ -51,6 +51,8 @@ mnt=$(mktemp -d)
 mount "${BOOT_PART}" "$mnt"
 cp "${src_dir}/Image" "${src_dir}/initrd" "$mnt/"
 "${REPO_ROOT}/scripts/patch-hc4-initrd.sh" "$mnt/initrd"
+"${REPO_ROOT}/scripts/build-hc4-linux-dtb.sh" "${REPO_ROOT}/root/boot/odroid-hc4.dtb"
+cp "${REPO_ROOT}/root/boot/odroid-hc4.dtb" "$mnt/"
 extlinux_src="${REPO_ROOT}/root/boot/extlinux/extlinux.conf"
 if [[ -f "${extlinux_src}" ]]; then
 	mkdir -p "$mnt/extlinux"
