@@ -47,12 +47,8 @@ materialize_symlink() {
         return 0
     fi
     rm -f "$link"
-    if ln "$target" "$link" 2>/dev/null; then
-        echo "-- materialized symlink (hardlink): $link"
-    else
-        cp -a "$target" "$link"
-        echo "-- materialized symlink: $link"
-    fi
+    cp -a "$target" "$link"
+    echo "-- materialized symlink: $link"
 }
 
 for search_root in /boot /usr/lib/modules; do
