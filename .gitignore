@@ -56,3 +56,4 @@ images/
 # ODROID-HC4 U-Boot overlay (from scripts/fetch-uboot-odroid-hc4.sh; optional fallback)
 root/boot/u-boot.bin
 root/boot/.uboot-install-style
+.build/

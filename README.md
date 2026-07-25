@@ -324,6 +324,7 @@ Before each HC4 Docker build, **`scripts/fetch-uboot-odroid-hc4.sh`** downloads 
 **`linux-u-boot-odroidhc4-current`** `.deb` (mainline **`odroid-hc4_defconfig`**, DT **`amlogic/meson-sm1-odroid-hc4.dtb`**)
 from e.g. `https://fi.mirror.armbian.de/beta/pool/main/l/linux-u-boot-odroidhc4-current/`.
 Pin a package with `ARMBIAN_UBOOT_DEB_URL=...`. Legacy openSUSE RPM fetch: `ROCKSTOR_UBOOT_SOURCE=opensuse`.
+Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`; openSUSE build host: install `dpkg`).
 `editbootinstall_odroid_hc4.sh` writes the disk image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
 
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
