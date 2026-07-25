@@ -37,15 +37,27 @@ HOOK_DIR="$WORK/var/lib/dracut/hooks/emergency"
 mkdir -p "$HOOK_DIR"
 cat >"$HOOK_DIR/99-rockstor-serial-diagnostics.sh" <<'EOF'
 #!/bin/sh
-# Dracut emergency only prints the rdsosreport banner on serial; dump full files here.
-for _f in /run/initramfs/rdsosreport.txt /run/initramfs/log/boot.kiwi /run/initramfs/init.log; do
-	[ -f "$_f" ] || continue
-	printf '\n===== rockstor initrd: %s =====\n' "$_f" > /dev/console
-	cat "$_f" > /dev/console
-done
+# Dracut sources emergency/*.sh; dump diagnostics to serial (ttyAML0) and console.
+rockstor_dump_initrd_diag() {
+	for _f in /run/initramfs/rdsosreport.txt /run/initramfs/log/boot.kiwi /run/initramfs/init.log; do
+		[ -f "$_f" ] || continue
+		for _out in /dev/ttyAML0 /dev/console /dev/tty0; do
+			[ -c "$_out" ] || continue
+			printf '\n===== rockstor initrd: %s =====\n' "$_f" >"$_out"
+			cat "$_f" >"$_out"
+		done
+	done
+}
+rockstor_dump_initrd_diag
 EOF
 chmod 0755 "$HOOK_DIR/99-rockstor-serial-diagnostics.sh"
 echo "initrd: installed emergency serial diagnostics hook"
+
+REPART_HOOK="$WORK/var/lib/dracut/hooks/pre-mount/20-kiwi-repart-disk.sh"
+if [[ -f "$REPART_HOOK" ]]; then
+	mv -f "$REPART_HOOK" "${REPART_HOOK}.disabled-by-rockstor-hc4"
+	echo "initrd: disabled kiwi-repart pre-mount hook (HC4 uses pre-sized SD layout)"
+fi
 
 TMP_OUT=$(mktemp)
 (cd "$WORK" && find . | cpio -o -H newc --quiet | zstd -19 -T0 -f -q -o "$TMP_OUT")
