@@ -53,5 +53,5 @@ kiwi-env/
 kiwi-images/
 images/
 
-# Mainline ODROID-HC4 U-Boot (built by scripts/build-uboot-odroid-hc4.sh)
+# ODROID-HC4 U-Boot overlay (from scripts/fetch-uboot-odroid-hc4.sh; optional fallback)
 root/boot/u-boot.bin

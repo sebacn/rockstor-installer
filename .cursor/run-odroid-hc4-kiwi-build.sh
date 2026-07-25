@@ -28,11 +28,12 @@ run_root docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
 sleep 2
 run_root rm -rf "$TARGET_DIR/build" "$TARGET_DIR"/*.raw "$TARGET_DIR"/*.changes "$TARGET_DIR"/*.packages "$TARGET_DIR"/*.verified "$TARGET_DIR"/kiwi.result "$TARGET_DIR"/kiwi.result.json 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR"
+# ROCKSTOR_SKIP_UBOOT_BUILD=1 skips fetching overlay u-boot.bin (kiwi still installs u-boot-odroid-c4 from repos).
 if [[ "${ROCKSTOR_SKIP_UBOOT_BUILD:-0}" != 1 ]]; then
-  bash "$REPO_ROOT/scripts/build-uboot-odroid-hc4.sh"
+  bash "$REPO_ROOT/scripts/fetch-uboot-odroid-hc4.sh"
 fi
 if [[ ! -f "$REPO_ROOT/root/boot/u-boot.bin" ]]; then
-  echo "Missing $REPO_ROOT/root/boot/u-boot.bin (build with scripts/build-uboot-odroid-hc4.sh or set ROCKSTOR_SKIP_UBOOT_BUILD=1 if pre-built)" >&2
+  echo "Missing $REPO_ROOT/root/boot/u-boot.bin (run scripts/fetch-uboot-odroid-hc4.sh or set ROCKSTOR_SKIP_UBOOT_BUILD=1 if only using the RPM in the image)" >&2
   exit 1
 fi
 echo "=== BUILD $(date -Iseconds) profile=$PROFILE target=$TARGET_DIR ===" | run_root tee -a "$LOG" >/dev/null

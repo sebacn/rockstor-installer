@@ -14,8 +14,7 @@ loopdev=${loopname#/dev/mapper/*}
 image_root="$(pwd)"
 
 #==========================================
-# Locate signed mainline U-Boot (kiwi overlay: root/boot/u-boot.bin from build script)
-# Optional fallbacks: legacy openSUSE u-boot-odroid-c4 package paths
+# Locate pre-built openSUSE u-boot-odroid-c4 (RPM in image) or kiwi overlay root/boot/u-boot.bin
 #------------------------------------------
 uboot_bin=""
 for candidate in \
