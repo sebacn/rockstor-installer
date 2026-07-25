@@ -55,5 +55,24 @@ fi
 sync
 umount "$mnt"
 rmdir "$mnt"
-echo "Done. On HC4: reset or 'reset' at U-Boot; should load extlinux from mmc 0:1."
-echo "Verify on PC: mount ${BOOT_PART} and ls; or in U-Boot: fatls mmc 0:1"
+
+# Re-install U-Boot that fits below LBA 2048 (mkfs.vfat on p1 overwrites sectors 2048+).
+uboot_install="${ROCKSTOR_HC4_UBOOT_FOR_INSTALL:-${REPO_ROOT}/root/boot/u-boot.bin}"
+if [[ "${ROCKSTOR_HC4_SKIP_UBOOT_WRITE:-0}" != 1 && -f "${uboot_install}" ]]; then
+	uboot_bytes=$(stat -c%s "${uboot_install}")
+	last_sector=$((1 + (uboot_bytes - 442 + 511) / 512))
+	if (( last_sector >= 2048 )); then
+		echo "ERROR: ${uboot_install} overlaps FAT @ LBA 2048 (ends sector ${last_sector})." >&2
+		echo "       Run: ROCKSTOR_UBOOT_SOURCE=opensuse ${REPO_ROOT}/scripts/fetch-uboot-odroid-hc4.sh" >&2
+		echo "       Then re-run this script with ROCKSTOR_HC4_UBOOT_FOR_INSTALL pointing at that u-boot.bin" >&2
+		exit 1
+	fi
+	echo "Writing U-Boot from ${uboot_install} to ${DEV} (after FAT repair) ..."
+	dd if="${uboot_install}" of="${DEV}" conv=fsync,notrunc bs=1 count=442 status=none
+	dd if="${uboot_install}" of="${DEV}" conv=fsync,notrunc bs=512 skip=1 seek=1 status=none
+	sync
+else
+	echo "Skipping U-Boot write (set ROCKSTOR_HC4_SKIP_UBOOT_WRITE=0 and install u-boot.bin to re-enable)."
+fi
+
+echo "Done. On HC4: reset; fatls mmc 0:1 should list Image and extlinux."

@@ -28,9 +28,14 @@ fi
 # Hardkernel HC4: bootloader must fit in sectors 1–1919 (see wiki.odroid.com HC4 partition table).
 uboot_bytes=$(stat -c%s "$UBOOT")
 last_sector=$((1 + (uboot_bytes - 442 + 511) / 512))
+if (( last_sector >= 2048 )); then
+	echo "ERROR: ${UBOOT} ends at sector ${last_sector}; incompatible with Rockstor FAT boot @ LBA 2048." >&2
+	echo "       Use openSUSE U-Boot: ROCKSTOR_UBOOT_SOURCE=opensuse scripts/fetch-uboot-odroid-hc4.sh" >&2
+	echo "       or set UBOOT to root/boot/u-boot-hc4-sda-working.bin only on Armbian-style disks (p1 @ 8192)." >&2
+	exit 1
+fi
 if (( last_sector > 1919 )); then
-	echo "WARNING: u-boot.bin spans through sector ${last_sector}; HC4 reserves 1–1919 for bootloader." >&2
-	echo "         Image may still boot, but FAT at LBA 2048 can be overwritten by the U-Boot tail." >&2
+	echo "WARNING: u-boot.bin spans through sector ${last_sector}; HC4 wiki reserves 1–1919 for bootloader." >&2
 fi
 
 echo "Writing U-Boot from ${UBOOT} to ${DEV} (442 bytes @ LBA0 + payload @ sector 1) ..."

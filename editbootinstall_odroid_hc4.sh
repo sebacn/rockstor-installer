@@ -47,6 +47,13 @@ fi
 # Install U-Boot on whole disk (Armbian / openSUSE SD images: 442 bytes @0 + payload @sector 1).
 #------------------------------------------
 if [ -n "$uboot_bin" ] && [ -f "$uboot_bin" ]; then
+    uboot_bytes=$(stat -c%s "$uboot_bin")
+    uboot_last=$((1 + (uboot_bytes - 442 + 511) / 512))
+    if (( uboot_last >= 2048 )); then
+        echo "ODROID HC4: ERROR: u-boot.bin ends at sector ${uboot_last}; FAT boot is at LBA 2048" >&2
+        echo "ODROID HC4: use openSUSE u-boot (ROCKSTOR_UBOOT_SOURCE=opensuse) for this image layout" >&2
+        exit 1
+    fi
     echo "ODROID HC4: writing U-Boot from ${uboot_bin} to ${loopdev}"
     dd if="$uboot_bin" of="$loopdev" conv=fsync,notrunc bs=1 count=442
     dd if="$uboot_bin" of="$loopdev" conv=fsync,notrunc bs=512 skip=1 seek=1
