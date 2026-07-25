@@ -319,22 +319,15 @@ Experimental installer for the [ODROID-HC4](https://wiki.odroid.com/odroid-hc4/s
 this uses an **MBR** partition table and **U-Boot** at sector 1 (not EFI/GPT). Kiwi is configured with `firmware="custom"`,
 `force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write U-Boot onto the raw disk.
 
-The bootloader is pre-built (no local compile). Default source is openSUSE Tumbleweed **`u-boot-odroid-c4`**
-(U-Boot 2026.01, `odroid-c4/hc4`). Kiwi installs it from the [Tumbleweed aarch64 ports repositories](https://cdn.opensuse.org/ports/aarch64/tumbleweed/repo/oss/).
+The bootloader is **not** an openSUSE RPM: kiwi merges **`root/boot/u-boot.bin`** from the image description overlay.
+Before each HC4 Docker build, **`scripts/fetch-uboot-odroid-hc4.sh`** downloads the latest Armbian
+**`linux-u-boot-odroidhc4-current`** `.deb` (mainline **`odroid-hc4_defconfig`**, DT **`amlogic/meson-sm1-odroid-hc4.dtb`**)
+from e.g. `https://fi.mirror.armbian.de/beta/pool/main/l/linux-u-boot-odroidhc4-current/`.
+Pin a package with `ARMBIAN_UBOOT_DEB_URL=...`. Legacy openSUSE RPM fetch: `ROCKSTOR_UBOOT_SOURCE=opensuse`.
+`editbootinstall_odroid_hc4.sh` writes the disk image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
 
-**Armbian (recommended for HC4 hardware):** set `ROCKSTOR_UBOOT_SOURCE=armbian` before the fetch script or HC4 Docker build.
-`scripts/fetch-uboot-odroid-hc4.sh` then downloads the latest **`linux-u-boot-odroidhc4-current`** `.deb` from Armbian
-(e.g. `https://fi.mirror.armbian.de/beta/pool/main/l/linux-u-boot-odroidhc4-current/`), extracts
-`usr/lib/linux-u-boot-current-odroidhc4/u-boot.bin` (mainline **`odroid-hc4_defconfig`**, U-Boot 2026.04+, DT
-**`amlogic/meson-sm1-odroid-hc4.dtb`**). Pin a specific package with `ARMBIAN_UBOOT_DEB_URL=...`.
-`editbootinstall_odroid_hc4.sh` writes the image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
-
-For offline builds or overlay-only installs, run `scripts/fetch-uboot-odroid-hc4.sh` (openSUSE RPM when `ROCKSTOR_UBOOT_SOURCE=opensuse`,
-or Armbian as above). Result: `root/boot/u-boot.bin` (gitignored). Override openSUSE RPM with `RPM_URL=...`.
+Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
-
-Set `ROCKSTOR_SKIP_UBOOT_BUILD=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if you do not need the overlay copy
-(the image still gets U-Boot from the RPM via kiwi when using the openSUSE source).
 
 Build on **aarch64** openSUSE (or use the Docker helper on arm64 hardware with loop-partition support; see Pi5 Docker section).
 
@@ -354,7 +347,7 @@ The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
 (`ROCKSTOR_KIWI_CACHE`, `ROCKSTOR_KIWI_CLEAR_CACHE`; see Pi5 Docker section).
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
-U-Boot is the openSUSE pre-built package (U-Boot 2026.01); partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
+U-Boot is the Armbian pre-built **`linux-u-boot-odroidhc4-current`** package; partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
 
 ## Resulting Rockstor installers
 With the above suggested `kiwi-ng` commands the resulting installers will be found in **/home/kiwi-images/** on the kiwi-ng host systems.

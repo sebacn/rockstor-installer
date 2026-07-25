@@ -14,20 +14,16 @@ loopdev=${loopname#/dev/mapper/*}
 image_root="$(pwd)"
 
 #==========================================
-# Locate pre-built openSUSE u-boot-odroid-c4 (RPM in image) or kiwi overlay root/boot/u-boot.bin
+# Locate Armbian pre-built U-Boot (kiwi overlay root/boot/u-boot.bin from fetch-uboot-odroid-hc4.sh)
 #------------------------------------------
 uboot_bin=""
 for candidate in \
-    "${image_root}/boot/u-boot.bin" \
-    "${image_root}/usr/share/u-boot/odroid-c4/u-boot.bin"; do
+    "${image_root}/boot/u-boot.bin"; do
     if [ -f "$candidate" ]; then
         uboot_bin=$candidate
         break
     fi
 done
-if [ -z "$uboot_bin" ] && command -v rpm >/dev/null 2>&1 && rpm --root "$image_root" -q u-boot-odroid-c4 >/dev/null 2>&1; then
-    uboot_bin=$(rpm --root "$image_root" -ql u-boot-odroid-c4 | grep -E '/u-boot\.bin$' | head -1 || true)
-fi
 
 #==========================================
 # Ensure DOS (MBR) partition table if kiwi left a protective GPT header

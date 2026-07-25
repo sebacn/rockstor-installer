@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Fetch pre-built U-Boot for ODROID-HC4 (openSUSE RPM or Armbian .deb).
+# Fetch pre-built U-Boot for ODROID-HC4 (default: Armbian linux-u-boot-odroidhc4-current; optional openSUSE RPM).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="${ROCKSTOR_UBOOT_SOURCE:-opensuse}"
+SOURCE="${ROCKSTOR_UBOOT_SOURCE:-armbian}"
 FETCH_DIR="${REPO_ROOT}/.build/uboot-odroid-hc4-fetch"
 DEST="${REPO_ROOT}/root/boot/u-boot.bin"
 STYLE_FILE="${REPO_ROOT}/root/boot/.uboot-install-style"
