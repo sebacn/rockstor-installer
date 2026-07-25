@@ -331,7 +331,7 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 
 **Btrfs / Snapper root subvolume:** Kiwi HC4 images use Snapper; the installed OS lives under **`@/.snapshots/1/snapshot`**, not the empty **`@`** subvolume. extlinux must use **`rootflags=subvol=@/.snapshots/1/snapshot`** (not `subvol=@`), or `switch_root` fails with *os-release file is missing* even when `mmcblk0p3` mounts. Do not set the btrfs default subvolume to bare `@` on migrated cards.
 
-**DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** also drops SD **`vmmc-supply`/`vqmmc-supply`** (regulator GPIO chain can defer `ffe05000.mmc` indefinitely) and removes the GPIO line from **`regulator-vcc-5v`** (always-on 5V). Initrd includes a pre-mount retry hook for deferred MMC bind.
+**DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** drops the GPIO line from always-on **`regulator-vcc-5v`** and **`vin-supply`** on **`gpio-regulator-tf-io`** so a failed 5V GPIO probe does not defer **`ffe05000.mmc`** (do not remove MMC **`vmmc-supply`/`vqmmc-supply`** — that breaks SD voltage negotiation). Initrd includes a pre-mount retry hook for deferred MMC bind.
 
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.

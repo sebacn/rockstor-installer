@@ -46,15 +46,13 @@ for node in /soc/mmc@ffe03000 /soc/mmc@ffe05000; do
 	fi
 done
 
-# SD slot (ffe05000): vqmmc-supply -> gpio-regulator-tf-io -> regulator-vcc-5v (GPIO -EPERM
-# on some boots) leaves meson_gx_mmc deferred forever. U-Boot already powers the card.
-if fdtget "$work" /soc/mmc@ffe05000 compatible &>/dev/null; then
-	fdtput -d "$work" /soc/mmc@ffe05000 vmmc-supply vqmmc-supply 2>/dev/null || true
-fi
-
-# regulator-vcc-5v is always-on; dropping GPIO avoids -EPERM blocking TF I/O regulator.
+# gpio-regulator-tf-io (vqmmc) chains to regulator-vcc-5v whose GPIO probe can fail
+# (-EPERM) and defer ffe05000.mmc forever. Keep vmmc/vqmmc on the MMC node.
 if fdtget "$work" /regulator-vcc-5v compatible &>/dev/null; then
 	fdtput -d "$work" /regulator-vcc-5v gpio 2>/dev/null || true
+fi
+if fdtget "$work" /gpio-regulator-tf-io compatible &>/dev/null; then
+	fdtput -d "$work" /gpio-regulator-tf-io vin-supply 2>/dev/null || true
 fi
 
 mkdir -p "$(dirname "$DEST")"
