@@ -391,9 +391,7 @@
         <!-- For WiFi: -->
         <package name="kernel-firmware-brcm"/>
     </packages>
-    <packages type="image" profiles="Tumbleweed.OdroidHC4">
-        <package name="u-boot-odroid-c4" arch="aarch64"/>
-    </packages>
+    <!-- HC4 U-Boot: Armbian pre-built via root/boot/u-boot.bin (scripts/fetch-uboot-odroid-hc4.sh), not an RPM -->
     <packages type="bootstrap">
         <package name="ca-certificates"/>
         <!-- https://github.com/OSInside/kiwi/issues/776#issuecomment-403724943 -->

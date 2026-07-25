@@ -317,8 +317,18 @@ but because the base images uses `ext4` as its file system and not btrfs, Rockst
 ### Tumbleweed.OdroidHC4 profile
 Experimental installer for the [ODROID-HC4](https://wiki.odroid.com/odroid-hc4/start) (Amlogic S905X3). Unlike the Raspberry Pi profiles,
 this uses an **MBR** partition table and **U-Boot** at sector 1 (not EFI/GPT). Kiwi is configured with `firmware="custom"`,
-`force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write the openSUSE **`u-boot-odroid-c4`**
-payload onto the raw image.
+`force_mbr="true"`, a FAT **/boot** partition, and `editbootinstall_odroid_hc4.sh` to write U-Boot onto the raw disk.
+
+The bootloader is **not** an openSUSE RPM: kiwi merges **`root/boot/u-boot.bin`** from the image description overlay.
+Before each HC4 Docker build, **`scripts/fetch-uboot-odroid-hc4.sh`** downloads the latest Armbian
+**`linux-u-boot-odroidhc4-current`** `.deb` (mainline **`odroid-hc4_defconfig`**, DT **`amlogic/meson-sm1-odroid-hc4.dtb`**)
+from e.g. `https://fi.mirror.armbian.de/beta/pool/main/l/linux-u-boot-odroidhc4-current/`.
+Pin a package with `ARMBIAN_UBOOT_DEB_URL=...`. Legacy openSUSE RPM fetch: `ROCKSTOR_UBOOT_SOURCE=opensuse`.
+Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`; openSUSE build host: install `dpkg`).
+`editbootinstall_odroid_hc4.sh` writes the disk image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
+
+Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
+`scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 
 Build on **aarch64** openSUSE (or use the Docker helper on arm64 hardware with loop-partition support; see Pi5 Docker section).
 
@@ -338,7 +348,7 @@ The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
 (`ROCKSTOR_KIWI_CACHE`, `ROCKSTOR_KIWI_CLEAR_CACHE`; see Pi5 Docker section).
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
-U-Boot and partition layout follow openSUSE/JeOS odroid practice but this profile is not yet part of the upstream Rockstor download matrix.
+U-Boot is the Armbian pre-built **`linux-u-boot-odroidhc4-current`** package; partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
 
 ## Resulting Rockstor installers
 With the above suggested `kiwi-ng` commands the resulting installers will be found in **/home/kiwi-images/** on the kiwi-ng host systems.
