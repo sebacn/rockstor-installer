@@ -11,6 +11,7 @@ PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 run_root modprobe loop max_part=8 2>/dev/null || true
+run_root sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR"
 if [[ "${ROCKSTOR_KIWI_CLEAR_CACHE:-0}" == 1 ]]; then
   echo "ROCKSTOR_KIWI_CLEAR_CACHE=1: removing $CACHE_DIR" | run_root tee -a "$LOG" >/dev/null
@@ -29,6 +30,7 @@ run_root mkdir -p "$TARGET_DIR"
 echo "=== BUILD $(date -Iseconds) profile=$PROFILE target=$TARGET_DIR ===" | run_root tee -a "$LOG" >/dev/null
 run_root docker run -d --name "$CONTAINER_NAME" --privileged --cap-add SYS_ADMIN \
   --security-opt seccomp=unconfined \
+  --pid=host \
   -v /dev:/dev \
   -v "$REPO_ROOT:/workspace" \
   -v "$TARGET_DIR:/home/kiwi-images" \
