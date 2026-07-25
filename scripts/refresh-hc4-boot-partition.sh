@@ -41,6 +41,8 @@ if [[ "$src_dir" != "$mnt" ]]; then
 	cp "${src_dir}/Image" "${src_dir}/initrd" "$mnt/"
 fi
 "${REPO_ROOT}/scripts/patch-hc4-initrd.sh" "$mnt/initrd"
+"${REPO_ROOT}/scripts/build-hc4-linux-dtb.sh" "${REPO_ROOT}/root/boot/odroid-hc4.dtb"
+cp "${REPO_ROOT}/root/boot/odroid-hc4.dtb" "$mnt/"
 mkdir -p "$mnt/extlinux"
 cp "${REPO_ROOT}/root/boot/extlinux/extlinux.conf" "$mnt/extlinux/"
 sync

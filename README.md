@@ -327,6 +327,8 @@ Pin a package with `ARMBIAN_UBOOT_DEB_URL=...`. Legacy openSUSE RPM fetch: `ROCK
 Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`; openSUSE build host: install `dpkg`).
 `editbootinstall_odroid_hc4.sh` writes the disk image using Armbian’s layout (442 bytes at LBA0 + payload at sector 1).
 
+**Linux device tree on FAT /boot:** Armbian/U-Boot DT lists the SD slot as `amlogic,meson-sm1-mmc`, but openSUSE **`meson_gx_mmc`** does not bind that compatible (only gx/gxl/gxm/gxbb/axg). Without an explicit DTB, serial logs may show **Machine model: ODROID-C4**, no `mmcblk*`, and dracut waiting forever on the btrfs root UUID. **`scripts/build-hc4-linux-dtb.sh`** extracts the HC4 DT from the Armbian U-Boot image, retargets the MMC nodes to **`amlogic,meson-gxl-mmc`**, and installs **`root/boot/odroid-hc4.dtb`**. **`root/boot/extlinux/extlinux.conf`** loads it via **`fdt /odroid-hc4.dtb`**. Refresh an existing SD with **`sudo scripts/refresh-hc4-boot-partition.sh /dev/sdX`**.
+
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 

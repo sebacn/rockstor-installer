@@ -49,9 +49,14 @@ fi
 if [ -n "$uboot_bin" ] && [ -f "$uboot_bin" ]; then
     uboot_bytes=$(stat -c%s "$uboot_bin")
     uboot_last=$((1 + (uboot_bytes - 442 + 511) / 512))
-    if (( uboot_last >= 2048 )); then
-        echo "ODROID HC4: ERROR: u-boot.bin ends at sector ${uboot_last}; FAT boot is at LBA 2048" >&2
-        echo "ODROID HC4: use openSUSE u-boot (ROCKSTOR_UBOOT_SOURCE=opensuse) for this image layout" >&2
+    # Kiwi HC4 images use disk_start_sector=8192; FAT @ 2048 only fits smaller U-Boot.
+    boot_start=8192
+    if command -v fdisk >/dev/null 2>&1; then
+        boot_start=$(fdisk -l "$loopdev" 2>/dev/null | awk -v p="${devname##*/}" '$1 ~ p"$" {print $2; exit}')
+        boot_start=${boot_start:-8192}
+    fi
+    if (( uboot_last >= boot_start )); then
+        echo "ODROID HC4: ERROR: u-boot.bin ends at sector ${uboot_last}; boot partition starts at ${boot_start}" >&2
         exit 1
     fi
     echo "ODROID HC4: writing U-Boot from ${uboot_bin} to ${loopdev}"
@@ -81,6 +86,14 @@ if [ -b "${boot_part}" ]; then
         [ "$base" = "Image" ] || [ "$base" = "initrd" ] && continue
         cp -a "$f" "${boot_mnt}/"
     done
+    if [ -x "${image_root}/../scripts/build-hc4-linux-dtb.sh" ]; then
+        "${image_root}/../scripts/build-hc4-linux-dtb.sh" "${image_root}/boot/odroid-hc4.dtb"
+    elif [ -x "${image_root}/scripts/build-hc4-linux-dtb.sh" ]; then
+        "${image_root}/scripts/build-hc4-linux-dtb.sh" "${image_root}/boot/odroid-hc4.dtb"
+    fi
+    if [ -f "${image_root}/boot/odroid-hc4.dtb" ]; then
+        cp -a "${image_root}/boot/odroid-hc4.dtb" "${boot_mnt}/"
+    fi
     if [ -f "${image_root}/boot/extlinux/extlinux.conf" ]; then
         mkdir -p "${boot_mnt}/extlinux"
         cp -a "${image_root}/boot/extlinux/extlinux.conf" "${boot_mnt}/extlinux/"
