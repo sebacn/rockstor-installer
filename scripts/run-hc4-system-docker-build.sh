@@ -34,7 +34,7 @@ PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd"
 
 unset DOCKER_HOST
-export PATH="/usr/bin:/bin:${PATH}"
+export DOCKER_HOST="${ROCKSTOR_DOCKER_HOST:-unix:///run/docker.sock}"
 
 systemctl enable --now docker
 if ! getent group docker | grep -qF "${BUILD_USER}"; then

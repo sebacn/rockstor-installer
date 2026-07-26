@@ -63,8 +63,13 @@ case "${1:-build}" in
 		fi
 		patch_kiwi_msdos
 		verify_kiwi_msdos_patch
-		exec run_root kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
-			--description /workspace --target-dir "${TARGET_DIR}"
+		if [[ "$(id -u)" -eq 0 ]]; then
+			exec kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
+				--description /workspace --target-dir "${TARGET_DIR}"
+		else
+			exec sudo kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
+				--description /workspace --target-dir "${TARGET_DIR}"
+		fi
 		;;
 	*)
 		echo "Usage: $0 [build|patch-only]" >&2
