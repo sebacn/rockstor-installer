@@ -335,6 +335,8 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 
 **DTB LAN (`end0`):** The external RTL8211 PHY sits on the G12A MDIO mux; **`reset-gpios`** / **`regulator-p12v-*` GPIO** can fail with **`-EPERM`** so **`g12a-mdio_mux`** never registers and **`end0`** logs *cannot attach to PHY*. The patched DTB removes those GPIO hooks, disables unused internal **`mdio@1`**, and drops duplicate **`snps,reset-*`** on **`ethernet@ff3f0000`**.
 
+**Blue status LED:** The device tree already marks the blue LED with **`linux,default-trigger = "heartbeat"`**; the image also sets **`heartbeat`** on **`/sys/class/leds/blue`** (and aliases) from **dracut initrd** (`patch-hc4-initrd.sh`), a **systemd** oneshot at sysinit, and a **udev** rule so the LED pulses early in boot and after reprobe.
+
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 

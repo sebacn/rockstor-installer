@@ -65,6 +65,38 @@ if [[ "${kiwi_profiles:-}${kiwi_profile:-}" == *OdroidHC4* ]]; then
 add_drivers+=" mmc_core meson_gx_mmc mmc_block btrfs "
 hostonly="no"
 EOF
+	install -d /usr/libexec
+	cat >/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh <<'LEDEOF'
+#!/bin/sh
+set -eu
+for _c in /sys/class/leds/blue /sys/class/leds/blue:* /sys/class/leds/led-blue*; do
+	[ -e "$_c" ] || continue
+	[ -f "$_c/trigger" ] || continue
+	grep -q '\[heartbeat\]' "$_c/trigger" 2>/dev/null || continue
+	echo heartbeat >"$_c/trigger" 2>/dev/null && break
+done
+LEDEOF
+	chmod 0755 /usr/libexec/rockstor-hc4-blue-led-heartbeat.sh
+	cat >/etc/systemd/system/rockstor-hc4-blue-led-heartbeat.service <<'EOF'
+[Unit]
+Description=ODROID-HC4 blue LED heartbeat
+DefaultDependencies=no
+After=systemd-udev-trigger.service
+Before=basic.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target
+EOF
+	cat >/etc/udev/rules.d/99-rockstor-hc4-blue-led-heartbeat.rules <<'EOF'
+# Re-apply heartbeat if the LED device is (re)probed after boot.
+ACTION=="add|change", SUBSYSTEM=="leds", KERNEL=="blue*", RUN+="/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh"
+EOF
+	baseInsertService rockstor-hc4-blue-led-heartbeat
 fi
 baseInsertService jeos-firstboot
 baseInsertService NetworkManager
