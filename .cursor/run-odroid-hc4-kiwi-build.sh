@@ -11,6 +11,11 @@ LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build-odroid-hc4.log}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
+export ROCKSTOR_KIWI_TARGET="$TARGET_DIR" ROCKSTOR_KIWI_CACHE="$CACHE_DIR" ROCKSTOR_KIWI_VAR_TMP="$KIWI_VAR_TMP"
+export ROCKSTOR_WORKER_IMAGE="$IMAGE"
+export ROCKSTOR_UBOOT_SOURCE="${ROCKSTOR_UBOOT_SOURCE:-armbian}"
+bash "$REPO_ROOT/scripts/prepare-hc4-build-host.sh" --docker
+bash "$REPO_ROOT/scripts/validate-hc4-build-host.sh" --docker
 run_root modprobe loop max_part=8 2>/dev/null || true
 run_root sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR" "$TARGET_DIR/tmp" "$KIWI_VAR_TMP"
@@ -28,11 +33,7 @@ run_root docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
 sleep 2
 run_root rm -rf "$TARGET_DIR/build" "$TARGET_DIR"/*.raw "$TARGET_DIR"/*.changes "$TARGET_DIR"/*.packages "$TARGET_DIR"/*.verified "$TARGET_DIR"/kiwi.result "$TARGET_DIR"/kiwi.result.json 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR"
-# Pre-built Armbian U-Boot (root/boot/u-boot.bin overlay). ROCKSTOR_SKIP_UBOOT_FETCH=1 if already fetched.
-export ROCKSTOR_UBOOT_SOURCE="${ROCKSTOR_UBOOT_SOURCE:-armbian}"
-if [[ "${ROCKSTOR_SKIP_UBOOT_FETCH:-0}" != 1 ]]; then
-  bash "$REPO_ROOT/scripts/fetch-uboot-odroid-hc4.sh"
-fi
+# u-boot.bin fetched by prepare-hc4-build-host.sh (unless ROCKSTOR_SKIP_UBOOT_FETCH=1)
 if [[ ! -f "$REPO_ROOT/root/boot/u-boot.bin" ]]; then
   echo "Missing $REPO_ROOT/root/boot/u-boot.bin (run scripts/fetch-uboot-odroid-hc4.sh on the host; needs dpkg-deb for Armbian .deb)" >&2
   exit 1

@@ -338,22 +338,88 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
 `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 
-Build on **aarch64** openSUSE (or use the Docker helper on arm64 hardware with loop-partition support; see Pi5 Docker section).
+#### Building on another aarch64 host
+
+You can produce a new HC4 installer on **any machine** that meets the profile constraints. Nothing in the recipe is tied to a specific board; only **default paths** in the helper scripts may need overriding.
+
+**Hard requirements**
+
+| Requirement | Why |
+|-------------|-----|
+| **aarch64 CPU** | `Tumbleweed.OdroidHC4` is an `aarch64` kiwi profile. **x86_64 hosts cannot build it** (schema/lint only). Use arm64 hardware, a self-hosted pool worker (`.cursor/worker.Dockerfile`), or native openSUSE on aarch64. |
+| **~15 GB+ free** on target and cache filesystems | RPM downloads, kiwi `build/` tree, and the `.raw` image. |
+| **Network** | openSUSE/Rockstor repos plus Armbian `linux-u-boot-odroidhc4-current` `.deb`. |
+| **Privileged build** | Native `kiwi-ng system build` needs loop devices; the Docker helper needs a **privileged** container, `-v /dev:/dev`, and `loop max_part=8` on the host (see Pi5 Docker section). |
+| **`dpkg-deb` on the host** (Docker path) | `scripts/fetch-uboot-odroid-hc4.sh` runs **on the host before** the container starts to extract the Armbian package (Debian/Ubuntu: `dpkg`; openSUSE: install the `dpkg` package). |
+
+**What is in git vs generated locally**
+
+| Path | In repository? |
+|------|----------------|
+| `root/boot/extlinux/extlinux.conf` | yes |
+| `root/boot/odroid-hc4.dtb` | yes (patched Linux-facing DTB) |
+| `root/boot/u-boot.bin` | **no** (gitignored; run `scripts/fetch-uboot-odroid-hc4.sh` on each fresh clone) |
+| `.build/uboot-odroid-hc4-fetch/` | **no** (gitignored; Armbian `.deb` extract cache) |
+
+**Option A — Docker on arm64** (same `rockstor-worker:arm64` image as Pi5; validated on Raspberry Pi 5, works on any arm64 Docker host):
 
 ```shell
-kiwi-ng --profile=Tumbleweed.OdroidHC4 --type oem system build --description ./ --target-dir /home/kiwi-images/
-```
+git clone https://github.com/rockstor/rockstor-installer.git
+cd rockstor-installer
+git checkout odroid-hc4   # or your feature branch
 
-Or from the repo root:
+docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor
 
-```shell
+export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
+export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
+export ROCKSTOR_KIWI_VAR_TMP="$HOME/kiwi-var-tmp"
+# Optional: export ROCKSTOR_KIWI_LOG="$HOME/kiwi-build-odroid-hc4.log"
+
 chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
-export ROCKSTOR_KIWI_TARGET=/path/with/15GB+free
 ./.cursor/run-odroid-hc4-kiwi-build.sh
 ```
 
-The HC4 helper uses the same **zypper cache** behaviour as the Pi5 Docker script
-(`ROCKSTOR_KIWI_CACHE`, `ROCKSTOR_KIWI_CLEAR_CACHE`; see Pi5 Docker section).
+**Pre-flight:** `.cursor/run-odroid-hc4-kiwi-build.sh` runs **`scripts/prepare-hc4-build-host.sh --docker`** then **`scripts/validate-hc4-build-host.sh --docker`**. Prepare creates output directories, installs **`curl`** / **`dpkg`** on openSUSE or Debian when possible, **downloads** `root/boot/u-boot.bin`, **builds** `rockstor-worker:arm64` from `.cursor/worker.Dockerfile` if missing, and can rebuild **`odroid-hc4.dtb`** when absent. Run manually to debug:
+
+```shell
+export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
+export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
+scripts/prepare-hc4-build-host.sh --docker
+scripts/validate-hc4-build-host.sh --docker   # or --native before sudo kiwi-ng
+```
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `ROCKSTOR_HC4_AUTO_PREPARE` | `1` | Run prepare step (set `0` to skip) |
+| `ROCKSTOR_HC4_AUTO_BUILD_WORKER` | `1` | `docker build` worker image when missing |
+| `ROCKSTOR_HC4_AUTO_INSTALL_HOST_DEPS` | `1` | `zypper`/`apt` install `curl`, `dpkg`, etc. |
+| `ROCKSTOR_HC4_AUTO_BUILD_DTB` | `1` | Run `build-hc4-linux-dtb.sh` if DTB missing |
+| `ROCKSTOR_SKIP_HC4_VALIDATE` | `0` | Skip validation only |
+
+Set `ROCKSTOR_SKIP_HC4_VALIDATE=1` to bypass validation. Minimum free space defaults: **15 GB** target, **10 GB** cache, **5 GB** `ROCKSTOR_KIWI_VAR_TMP` (override with `ROCKSTOR_HC4_MIN_FREE_*_GB`).
+
+The HC4 helper fetches **`root/boot/u-boot.bin`** unless `ROCKSTOR_SKIP_UBOOT_FETCH=1` and that file already exists. Override **`ROCKSTOR_KIWI_TARGET`**, **`ROCKSTOR_KIWI_CACHE`**, and **`ROCKSTOR_KIWI_VAR_TMP`** — the script defaults to `/mnt/bdata/...`, which may not exist on a new host.
+
+Monitor: `docker logs -f rockstor-odroid-hc4-build`. On success the installer is **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** (plus `.packages`, `.changes`, `.verified`, `kiwi.result`). Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
+
+**Option B — Native openSUSE aarch64** (Leap 15.6 / Tumbleweed with `python3-kiwi` and build dependencies per `vagrant_env/` / README):
+
+```shell
+export ROCKSTOR_KIWI_TARGET=/path/with/15GB+free
+scripts/prepare-hc4-build-host.sh --native
+scripts/validate-hc4-build-host.sh --native
+# Optional: refresh DTB from the same Armbian U-Boot package (needs device-tree-compiler / fdtput)
+scripts/build-hc4-linux-dtb.sh
+
+sudo kiwi-ng --profile=Tumbleweed.OdroidHC4 --type oem system build \
+  --description ./ --target-dir "$ROCKSTOR_KIWI_TARGET"
+```
+
+**Notes**
+
+- Committed **`odroid-hc4.dtb`** is enough for a successful build. Run **`scripts/build-hc4-linux-dtb.sh`** after **`fetch-uboot-odroid-hc4.sh`** if you want the DTB patches applied to the **same** Armbian U-Boot version you just fetched.
+- Flash the **`.raw`** to HC4 **microSD or eMMC** (not a SATA disk). The kiwi post-install step already writes U-Boot; re-run **`scripts/write-uboot-odroid-hc4-to-disk.sh`** only if you repaired the card without that step.
+- **Cursor managed x86_64 cloud agents** cannot run this profile; use arm64 hardware or a self-hosted worker.
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
 U-Boot is the Armbian pre-built **`linux-u-boot-odroidhc4-current`** package; partition layout follows Hardkernel/JeOS practice. This profile is not yet part of the upstream Rockstor download matrix.
