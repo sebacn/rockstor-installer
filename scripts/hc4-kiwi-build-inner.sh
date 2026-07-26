@@ -52,7 +52,7 @@ install_kiwi_kpartx_mapper() {
 	run_root mkdir -p /etc/kiwi.yml.d
 	cat <<'EOF' | run_root tee /etc/kiwi.yml.d/hc4-part-mapper.yml >/dev/null
 mapper:
-  part_mapper: kpartx
+  - part_mapper: kpartx
 EOF
 	echo "hc4-kiwi-build-inner: installed /etc/kiwi.yml.d/hc4-part-mapper.yml (part_mapper=kpartx)"
 }
