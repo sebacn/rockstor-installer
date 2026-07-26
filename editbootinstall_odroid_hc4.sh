@@ -80,6 +80,12 @@ if [ -b "${boot_part}" ]; then
             cp -a "${image_root}/boot/${f}" "${boot_mnt}/"
         fi
     done
+    for patch in "${image_root}/../scripts/patch-hc4-initrd.sh" "${image_root}/scripts/patch-hc4-initrd.sh"; do
+        if [ -f "${boot_mnt}/initrd" ] && [ -x "$patch" ]; then
+            "$patch" "${boot_mnt}/initrd"
+            break
+        fi
+    done
     for f in "${image_root}"/boot/Image-* "${image_root}"/boot/initrd-*; do
         [ -f "$f" ] || continue
         base=$(basename "$f")

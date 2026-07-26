@@ -84,6 +84,21 @@ EOF
 chmod 0755 "$PRE_MOUNT_DIR/99-rockstor-hc4-mmc-deferred-reprobe.sh"
 echo "initrd: installed pre-mount HC4 MMC deferred-probe retry hook"
 
+INITQ_DIR="$WORK/var/lib/dracut/hooks/initqueue/settled"
+mkdir -p "$INITQ_DIR"
+cat >"$INITQ_DIR/99-rockstor-hc4-blue-led-heartbeat.sh" <<'EOF'
+#!/bin/sh
+type modprobe >/dev/null 2>&1 && modprobe ledtrig-heartbeat 2>/dev/null || true
+for _c in /sys/class/leds/blue /sys/class/leds/blue:* /sys/class/leds/led-blue*; do
+	[ -e "$_c" ] || continue
+	[ -f "$_c/trigger" ] || continue
+	grep -q '\[heartbeat\]' "$_c/trigger" 2>/dev/null || continue
+	echo heartbeat >"$_c/trigger" 2>/dev/null && break
+done
+EOF
+chmod 0755 "$INITQ_DIR/99-rockstor-hc4-blue-led-heartbeat.sh"
+echo "initrd: installed initqueue HC4 blue LED heartbeat hook"
+
 REPART_HOOK="$WORK/var/lib/dracut/hooks/pre-mount/20-kiwi-repart-disk.sh"
 if [[ -f "$REPART_HOOK" ]]; then
 	mv -f "$REPART_HOOK" "${REPART_HOOK}.disabled-by-rockstor-hc4"
