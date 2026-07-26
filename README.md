@@ -379,15 +379,24 @@ chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
 ./.cursor/run-odroid-hc4-kiwi-build.sh
 ```
 
-**Pre-flight:** `.cursor/run-odroid-hc4-kiwi-build.sh` runs **`scripts/validate-hc4-build-host.sh --docker`** first (aarch64, disk space, Docker image, `dpkg-deb`, boot overlay files). Run it alone to debug a host:
+**Pre-flight:** `.cursor/run-odroid-hc4-kiwi-build.sh` runs **`scripts/prepare-hc4-build-host.sh --docker`** then **`scripts/validate-hc4-build-host.sh --docker`**. Prepare creates output directories, installs **`curl`** / **`dpkg`** on openSUSE or Debian when possible, **downloads** `root/boot/u-boot.bin`, **builds** `rockstor-worker:arm64` from `.cursor/worker.Dockerfile` if missing, and can rebuild **`odroid-hc4.dtb`** when absent. Run manually to debug:
 
 ```shell
 export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
 export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
+scripts/prepare-hc4-build-host.sh --docker
 scripts/validate-hc4-build-host.sh --docker   # or --native before sudo kiwi-ng
 ```
 
-Set `ROCKSTOR_SKIP_HC4_VALIDATE=1` to bypass checks. Minimum free space defaults: **15 GB** target, **10 GB** cache, **5 GB** `ROCKSTOR_KIWI_VAR_TMP` (override with `ROCKSTOR_HC4_MIN_FREE_*_GB`).
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `ROCKSTOR_HC4_AUTO_PREPARE` | `1` | Run prepare step (set `0` to skip) |
+| `ROCKSTOR_HC4_AUTO_BUILD_WORKER` | `1` | `docker build` worker image when missing |
+| `ROCKSTOR_HC4_AUTO_INSTALL_HOST_DEPS` | `1` | `zypper`/`apt` install `curl`, `dpkg`, etc. |
+| `ROCKSTOR_HC4_AUTO_BUILD_DTB` | `1` | Run `build-hc4-linux-dtb.sh` if DTB missing |
+| `ROCKSTOR_SKIP_HC4_VALIDATE` | `0` | Skip validation only |
+
+Set `ROCKSTOR_SKIP_HC4_VALIDATE=1` to bypass validation. Minimum free space defaults: **15 GB** target, **10 GB** cache, **5 GB** `ROCKSTOR_KIWI_VAR_TMP` (override with `ROCKSTOR_HC4_MIN_FREE_*_GB`).
 
 The HC4 helper fetches **`root/boot/u-boot.bin`** unless `ROCKSTOR_SKIP_UBOOT_FETCH=1` and that file already exists. Override **`ROCKSTOR_KIWI_TARGET`**, **`ROCKSTOR_KIWI_CACHE`**, and **`ROCKSTOR_KIWI_VAR_TMP`** — the script defaults to `/mnt/bdata/...`, which may not exist on a new host.
 
@@ -397,8 +406,8 @@ Monitor: `docker logs -f rockstor-odroid-hc4-build`. On success the installer is
 
 ```shell
 export ROCKSTOR_KIWI_TARGET=/path/with/15GB+free
+scripts/prepare-hc4-build-host.sh --native
 scripts/validate-hc4-build-host.sh --native
-scripts/fetch-uboot-odroid-hc4.sh
 # Optional: refresh DTB from the same Armbian U-Boot package (needs device-tree-compiler / fdtput)
 scripts/build-hc4-linux-dtb.sh
 
