@@ -60,6 +60,6 @@ run_root docker run -d --name "$CONTAINER_NAME" --privileged --cap-add SYS_ADMIN
   -e TMPDIR=/var/tmp \
   -w /workspace \
   "$IMAGE" \
-  sudo bash -c 'set -e; zypper --non-interactive in -y '"$KIWI_PREP_PKGS"'; command -v lsblk >/dev/null; modprobe loop max_part=8 2>/dev/null || true; sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 >/dev/null 2>&1 || true; bash /workspace/scripts/patch-kiwi-msdos-mbsize.sh; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"$PROFILE"' --type oem system build --description ./ --target-dir /home/kiwi-images/' \
+  bash /workspace/scripts/hc4-kiwi-build-inner.sh build \
   >/dev/null
 echo "Started $CONTAINER_NAME profile=$PROFILE (detached). Log: docker logs -f $CONTAINER_NAME  (or tee $LOG)"
