@@ -112,12 +112,20 @@ if [[ "${MODE}" == docker ]]; then
 	check_min_free "container TMPDIR" "${KIWI_VAR_TMP}" "${MIN_VARTMP_GB}"
 fi
 
+STYLE_FILE="${REPO_ROOT}/root/boot/.uboot-install-style"
 if [[ "${SKIP_UBOOT_FETCH}" != 1 ]]; then
 	if [[ "${UBOOT_SOURCE}" == armbian ]]; then
 		if ! command -v dpkg-deb >/dev/null 2>&1; then
 			note_fail "dpkg-deb not found (install dpkg; required to extract Armbian linux-u-boot-odroidhc4-current .deb)"
 		else
 			note_ok "dpkg-deb available for U-Boot fetch"
+		fi
+		if [[ ! -f "${REPO_ROOT}/root/boot/u-boot.bin" ]]; then
+			note_fail "missing ${REPO_ROOT}/root/boot/u-boot.bin (run scripts/fetch-uboot-odroid-hc4.sh)"
+		elif [[ ! -f "${STYLE_FILE}" ]] || [[ "$(tr -d '[:space:]' <"${STYLE_FILE}")" != armbian ]]; then
+			note_fail "root/boot/u-boot.bin is not from Armbian (expected ${STYLE_FILE}=armbian; use ROCKSTOR_UBOOT_SOURCE=armbian and re-run prepare/fetch)"
+		else
+			note_ok "root/boot/u-boot.bin from Armbian overlay (${STYLE_FILE})"
 		fi
 	fi
 	if ! command -v curl >/dev/null 2>&1; then

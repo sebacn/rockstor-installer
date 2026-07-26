@@ -50,6 +50,19 @@ chown -R "${BUILD_USER}:${BUILD_USER}" "${TARGET_DIR}" "${CACHE_DIR}" "${KIWI_VA
 export ROCKSTOR_KIWI_TARGET="${TARGET_DIR}" ROCKSTOR_KIWI_CACHE="${CACHE_DIR}" ROCKSTOR_KIWI_VAR_TMP="${KIWI_VAR_TMP}"
 export ROCKSTOR_WORKER_IMAGE="${IMAGE}"
 export ROCKSTOR_UBOOT_SOURCE="${ROCKSTOR_UBOOT_SOURCE:-armbian}"
+if [[ "${ROCKSTOR_UBOOT_SOURCE}" != armbian ]]; then
+	echo "WARNING: ROCKSTOR_UBOOT_SOURCE=${ROCKSTOR_UBOOT_SOURCE} (HC4 images expect Armbian U-Boot; see README)" >&2
+fi
+
+# Armbian .deb extract runs on the host before the container (needs dpkg-deb).
+if [[ "${ROCKSTOR_SKIP_UBOOT_FETCH:-0}" != 1 && "${ROCKSTOR_UBOOT_SOURCE}" == armbian ]]; then
+	if command -v zypper >/dev/null 2>&1; then
+		zypper --non-interactive install -y dpkg curl || true
+	elif command -v apt-get >/dev/null 2>&1; then
+		apt-get update -qq || true
+		apt-get install -y dpkg curl || true
+	fi
+fi
 
 sudo -u "${BUILD_USER}" -E bash "${REPO_ROOT}/scripts/prepare-hc4-build-host.sh" --docker
 sudo -u "${BUILD_USER}" -E bash "${REPO_ROOT}/scripts/validate-hc4-build-host.sh" --docker
@@ -61,6 +74,14 @@ fi
 if [[ ! -f "${REPO_ROOT}/root/boot/u-boot.bin" ]]; then
 	echo "Missing ${REPO_ROOT}/root/boot/u-boot.bin" >&2
 	exit 1
+fi
+if [[ "${ROCKSTOR_SKIP_UBOOT_FETCH:-0}" != 1 && "${ROCKSTOR_UBOOT_SOURCE}" == armbian ]]; then
+	uboot_style="${REPO_ROOT}/root/boot/.uboot-install-style"
+	if [[ ! -f "${uboot_style}" ]] || [[ "$(tr -d '[:space:]' <"${uboot_style}")" != armbian ]]; then
+		echo "Refusing to build: ${REPO_ROOT}/root/boot/u-boot.bin must be from latest Armbian package." >&2
+		echo "Run: ROCKSTOR_UBOOT_SOURCE=armbian bash ${REPO_ROOT}/scripts/fetch-uboot-odroid-hc4.sh" >&2
+		exit 1
+	fi
 fi
 
 docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
