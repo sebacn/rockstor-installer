@@ -88,7 +88,7 @@ INITQ_DIR="$WORK/var/lib/dracut/hooks/initqueue/settled"
 mkdir -p "$INITQ_DIR"
 cat >"$INITQ_DIR/99-rockstor-hc4-blue-led-heartbeat.sh" <<'EOF'
 #!/bin/sh
-# HC4 blue status LED: heartbeat as soon as gpio-leds sysfs appears (initrd + early boot).
+type modprobe >/dev/null 2>&1 && modprobe ledtrig-heartbeat 2>/dev/null || true
 for _c in /sys/class/leds/blue /sys/class/leds/blue:* /sys/class/leds/led-blue*; do
 	[ -e "$_c" ] || continue
 	[ -f "$_c/trigger" ] || continue

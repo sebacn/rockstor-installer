@@ -62,19 +62,46 @@ if [[ "${kiwi_profiles:-}${kiwi_profile:-}" == *OdroidHC4* ]]; then
 	baseRemoveService dracut_hostonly
 	mkdir -p /etc/dracut.conf.d
 	cat >/etc/dracut.conf.d/rockstor-odroid-hc4.conf <<'EOF'
-add_drivers+=" mmc_core meson_gx_mmc mmc_block btrfs "
+add_drivers+=" mmc_core meson_gx_mmc mmc_block btrfs ledtrig_heartbeat "
 hostonly="no"
 EOF
 	install -d /usr/libexec
 	cat >/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh <<'LEDEOF'
 #!/bin/sh
 set -eu
-for _c in /sys/class/leds/blue /sys/class/leds/blue:* /sys/class/leds/led-blue*; do
-	[ -e "$_c" ] || continue
-	[ -f "$_c/trigger" ] || continue
-	grep -q '\[heartbeat\]' "$_c/trigger" 2>/dev/null || continue
-	echo heartbeat >"$_c/trigger" 2>/dev/null && break
-done
+MODE=${1:---oneshot}
+load_led_triggers() {
+	type modprobe >/dev/null 2>&1 || return 0
+	modprobe ledtrig-heartbeat 2>/dev/null || true
+}
+find_blue_led() {
+	for _c in /sys/class/leds/blue /sys/class/leds/blue:* /sys/class/leds/led-blue*; do
+		[ -e "$_c" ] || continue
+		[ -f "$_c/trigger" ] || continue
+		printf '%s' "$_c"; return 0
+	done
+	return 1
+}
+apply_kernel_heartbeat() {
+	_led=$1
+	load_led_triggers
+	grep -q '\[heartbeat\]' "$_led/trigger" 2>/dev/null || return 1
+	echo heartbeat >"$_led/trigger" 2>/dev/null
+}
+oneshot_with_retry() {
+	_i=1
+	while [ "$_i" -le 15 ]; do
+		_led=$(find_blue_led) || { sleep 1; _i=$((_i + 1)); continue; }
+		if apply_kernel_heartbeat "$_led"; then return 0; fi
+		sleep 1
+		_i=$((_i + 1))
+	done
+	return 1
+}
+case "$MODE" in
+	--oneshot|--run) oneshot_with_retry || true ;;
+	*) echo "Usage: $0 [--oneshot|--run]" >&2; exit 2 ;;
+esac
 LEDEOF
 	chmod 0755 /usr/libexec/rockstor-hc4-blue-led-heartbeat.sh
 	cat >/etc/systemd/system/rockstor-hc4-blue-led-heartbeat.service <<'EOF'
@@ -86,15 +113,15 @@ Before=basic.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh
+ExecStart=/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh --oneshot
 RemainAfterExit=yes
 
 [Install]
 WantedBy=sysinit.target
 EOF
 	cat >/etc/udev/rules.d/99-rockstor-hc4-blue-led-heartbeat.rules <<'EOF'
-# Re-apply heartbeat if the LED device is (re)probed after boot.
-ACTION=="add|change", SUBSYSTEM=="leds", KERNEL=="blue*", RUN+="/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh"
+# Only on probe; avoid "change" when we write trigger (udev feedback loop).
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="blue*", RUN+="/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh --oneshot"
 EOF
 	baseInsertService rockstor-hc4-blue-led-heartbeat
 fi

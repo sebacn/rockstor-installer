@@ -1,18 +1,58 @@
 #!/bin/sh
-# Set HC4 status LED (blue) to kernel heartbeat trigger when sysfs node exists.
+# HC4 blue status LED: load ledtrig-heartbeat and use kernel heartbeat trigger only.
 set -eu
 
-set_hc4_blue_led_heartbeat() {
-	_led=""
+MODE=${1:---oneshot}
+
+load_led_triggers() {
+	type modprobe >/dev/null 2>&1 || return 0
+	modprobe ledtrig-heartbeat 2>/dev/null || true
+}
+
+find_blue_led() {
 	for _c in /sys/class/leds/blue /sys/class/leds/blue:* /sys/class/leds/led-blue*; do
 		[ -e "$_c" ] || continue
 		[ -f "$_c/trigger" ] || continue
-		_led=$_c
-		break
+		printf '%s' "$_c"
+		return 0
 	done
-	[ -n "$_led" ] || return 0
-	grep -q '\[heartbeat\]' "$_led/trigger" 2>/dev/null || return 0
-	echo heartbeat >"$_led/trigger" 2>/dev/null || true
+	return 1
 }
 
-set_hc4_blue_led_heartbeat
+apply_kernel_heartbeat() {
+	_led=$1
+	load_led_triggers
+	grep -q '\[heartbeat\]' "$_led/trigger" 2>/dev/null || return 1
+	echo heartbeat >"$_led/trigger" 2>/dev/null
+}
+
+oneshot_with_retry() {
+	_i=1
+	while [ "$_i" -le 15 ]; do
+		_led=$(find_blue_led) || {
+			sleep 1
+			_i=$((_i + 1))
+			continue
+		}
+		if apply_kernel_heartbeat "$_led"; then
+			return 0
+		fi
+		sleep 1
+		_i=$((_i + 1))
+	done
+	return 1
+}
+
+case "$MODE" in
+	--oneshot)
+		oneshot_with_retry || true
+		;;
+	--run)
+		# Back-compat: same as oneshot (no userspace blink loop).
+		oneshot_with_retry || true
+		;;
+	*)
+		echo "Usage: $0 [--oneshot|--run]" >&2
+		exit 2
+		;;
+esac
