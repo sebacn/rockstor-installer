@@ -379,6 +379,16 @@ chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
 ./.cursor/run-odroid-hc4-kiwi-build.sh
 ```
 
+**Pre-flight:** `.cursor/run-odroid-hc4-kiwi-build.sh` runs **`scripts/validate-hc4-build-host.sh --docker`** first (aarch64, disk space, Docker image, `dpkg-deb`, boot overlay files). Run it alone to debug a host:
+
+```shell
+export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
+export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
+scripts/validate-hc4-build-host.sh --docker   # or --native before sudo kiwi-ng
+```
+
+Set `ROCKSTOR_SKIP_HC4_VALIDATE=1` to bypass checks. Minimum free space defaults: **15 GB** target, **10 GB** cache, **5 GB** `ROCKSTOR_KIWI_VAR_TMP` (override with `ROCKSTOR_HC4_MIN_FREE_*_GB`).
+
 The HC4 helper fetches **`root/boot/u-boot.bin`** unless `ROCKSTOR_SKIP_UBOOT_FETCH=1` and that file already exists. Override **`ROCKSTOR_KIWI_TARGET`**, **`ROCKSTOR_KIWI_CACHE`**, and **`ROCKSTOR_KIWI_VAR_TMP`** — the script defaults to `/mnt/bdata/...`, which may not exist on a new host.
 
 Monitor: `docker logs -f rockstor-odroid-hc4-build`. On success the installer is **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** (plus `.packages`, `.changes`, `.verified`, `kiwi.result`). Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
@@ -386,12 +396,14 @@ Monitor: `docker logs -f rockstor-odroid-hc4-build`. On success the installer is
 **Option B — Native openSUSE aarch64** (Leap 15.6 / Tumbleweed with `python3-kiwi` and build dependencies per `vagrant_env/` / README):
 
 ```shell
+export ROCKSTOR_KIWI_TARGET=/path/with/15GB+free
+scripts/validate-hc4-build-host.sh --native
 scripts/fetch-uboot-odroid-hc4.sh
 # Optional: refresh DTB from the same Armbian U-Boot package (needs device-tree-compiler / fdtput)
 scripts/build-hc4-linux-dtb.sh
 
 sudo kiwi-ng --profile=Tumbleweed.OdroidHC4 --type oem system build \
-  --description ./ --target-dir /path/with/15GB+free
+  --description ./ --target-dir "$ROCKSTOR_KIWI_TARGET"
 ```
 
 **Notes**

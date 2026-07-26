@@ -11,6 +11,9 @@ LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build-odroid-hc4.log}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
+export ROCKSTOR_KIWI_TARGET="$TARGET_DIR" ROCKSTOR_KIWI_CACHE="$CACHE_DIR" ROCKSTOR_KIWI_VAR_TMP="$KIWI_VAR_TMP"
+export ROCKSTOR_WORKER_IMAGE="$IMAGE"
+bash "$REPO_ROOT/scripts/validate-hc4-build-host.sh" --docker
 run_root modprobe loop max_part=8 2>/dev/null || true
 run_root sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 2>/dev/null || true
 run_root mkdir -p "$TARGET_DIR" "$CACHE_DIR" "$TARGET_DIR/tmp" "$KIWI_VAR_TMP"
