@@ -101,7 +101,7 @@ docker run -d --name "${CONTAINER_NAME}" --privileged --cap-add SYS_ADMIN \
 	-e TMPDIR=/var/tmp \
 	-w /workspace \
 	"${IMAGE}" \
-	bash -c 'set -e; sudo zypper --non-interactive in -y '"${KIWI_PREP_PKGS}"'; command -v lsblk >/dev/null; sudo modprobe loop max_part=8 2>/dev/null || true; sudo sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 >/dev/null 2>&1 || true; exec sudo kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"${PROFILE}"' --type oem system build --description ./ --target-dir /home/kiwi-images/'
+	bash -c 'set -e; sudo zypper --non-interactive in -y '"${KIWI_PREP_PKGS}"'; command -v lsblk >/dev/null; sudo modprobe loop max_part=8 2>/dev/null || true; sudo sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 >/dev/null 2>&1 || true; sudo bash /workspace/scripts/patch-kiwi-msdos-mbsize.sh; exec sudo kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"${PROFILE}"' --type oem system build --description ./ --target-dir /home/kiwi-images/'
 
 chown "${BUILD_USER}:${BUILD_USER}" "${LOG}" 2>/dev/null || true
 echo "Started ${CONTAINER_NAME} profile=${PROFILE}. Monitor: docker logs -f ${CONTAINER_NAME}"

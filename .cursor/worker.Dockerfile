@@ -54,7 +54,11 @@ RUN zypper --non-interactive --gpg-auto-import-keys refresh \
         util-linux \
         util-linux-systemd \
         pam_pwquality \
-    && zypper clean --all
+    && zypper clean --all \
+    && for f in /usr/lib/python3*/site-packages/kiwi/partitioner/msdos.py; do \
+         [ -f "$f" ] || continue; \
+         grep -q 'mbsize += int(' "$f" && sed -i 's/mbsize += int(/mbsize = int(mbsize) + int(/' "$f"; \
+       done
 
 # Non-root worker user with passwordless sudo (Cursor convention).
 RUN (id -u ubuntu >/dev/null 2>&1 || useradd -m -s /bin/bash ubuntu) \
