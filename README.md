@@ -337,8 +337,8 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 
 **Blue status LED:** Load **`ledtrig-heartbeat`** (`modprobe ledtrig-heartbeat`) so **`heartbeat`** appears in `/sys/class/leds/blue:status/trigger`; initrd and a **oneshot** systemd unit set the kernel **heartbeat** trigger only (no fast userspace blink fallback). Use `echo heartbeat | sudo tee …/trigger` on the running system to test.
 
-Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when invoking `.cursor/run-odroid-hc4-kiwi-build.sh` if `root/boot/u-boot.bin` is already present.
-`scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
+Set `ROCKSTOR_SKIP_UBOOT_FETCH=1` when starting a Docker build if `root/boot/u-boot.bin` is already present and
+`root/boot/.uboot-install-style` is `armbian`. `scripts/build-uboot-odroid-hc4.sh` is a thin wrapper around the fetch script.
 
 #### Building on another aarch64 host
 
@@ -363,7 +363,11 @@ You can produce a new HC4 installer on **any machine** that meets the profile co
 | `root/boot/u-boot.bin` | **no** (gitignored; run `scripts/fetch-uboot-odroid-hc4.sh` on each fresh clone) |
 | `.build/uboot-odroid-hc4-fetch/` | **no** (gitignored; Armbian `.deb` extract cache) |
 
-**Option A — Docker on arm64** (same `rockstor-worker:arm64` image as Pi5; validated on Raspberry Pi 5, works on any arm64 Docker host):
+**Option A — Docker on arm64** (same `rockstor-worker:arm64` image as Pi5; validated on ODROID-HC4 / Pi 5 class hosts):
+
+Use **system Docker** (`unix:///run/docker.sock`). **Rootless Docker** (`DOCKER_HOST` under `/run/user/...`) cannot run `kiwi-ng system build` (chroot `/proc` mount fails). The worker container must be **privileged**, with **`-v /dev:/dev`**, **`--pid=host`**, and host **`loop max_part=8`** so kiwi can map partitions (`kpartx` / `/dev/mapper/loop0p1`). Inside the container, **`scripts/hc4-kiwi-build-inner.sh`** applies the HC4 kiwi workarounds (msdos `disk_start_sector` patch, `part_mapper: kpartx`) before `kiwi-ng`.
+
+**One-time:** clone, checkout the HC4 branch, build the worker image:
 
 ```shell
 git clone https://github.com/rockstor/rockstor-installer.git
@@ -371,38 +375,76 @@ cd rockstor-installer
 git checkout odroid-hc4   # or your feature branch
 
 docker build -f .cursor/worker.Dockerfile -t rockstor-worker:arm64 .cursor
-
-export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
-export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
-export ROCKSTOR_KIWI_VAR_TMP="$HOME/kiwi-var-tmp"
-# Optional: export ROCKSTOR_KIWI_LOG="$HOME/kiwi-build-odroid-hc4.log"
-
-chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
-./.cursor/run-odroid-hc4-kiwi-build.sh
 ```
 
-**Pre-flight:** `.cursor/run-odroid-hc4-kiwi-build.sh` runs **`scripts/prepare-hc4-build-host.sh --docker`** then **`scripts/validate-hc4-build-host.sh --docker`**. Prepare creates output directories, installs **`curl`** / **`dpkg`** on openSUSE or Debian when possible, **downloads** `root/boot/u-boot.bin`, **builds** `rockstor-worker:arm64` from `.cursor/worker.Dockerfile` if missing, and can rebuild **`odroid-hc4.dtb`** when absent. Run manually to debug:
+**Paths** (override if `/mnt/bdata` is not available; helpers default to `$HOME/...` when `/mnt/bdata` is missing):
 
 ```shell
 export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
 export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
+export ROCKSTOR_KIWI_VAR_TMP="$HOME/kiwi-var-tmp"
+# Optional: export ROCKSTOR_KIWI_LOG="$HOME/kiwi-build-odroid-hc4.log"
+export ROCKSTOR_UBOOT_SOURCE=armbian   # default; Armbian linux-u-boot-odroidhc4-current
+```
+
+**Recommended — full build via system Docker** (starts `docker` if needed, runs prepare/validate as your user, cleans stale `build/` + `.raw`, launches detached container `rockstor-odroid-hc4-build`):
+
+```shell
+sudo -E bash scripts/run-hc4-system-docker-build.sh
+```
+
+Optional: `ROCKSTOR_SKIP_WORKER_BUILD=1` if the image already exists; `ROCKSTOR_BUILD_USER=youruser` when `SUDO_USER` is unset.
+
+**Alternative — same container without the sudo wrapper** (user must reach the system daemon, e.g. `docker` group + `DOCKER_HOST=unix:///run/docker.sock`):
+
+```shell
+chmod +x .cursor/run-odroid-hc4-kiwi-build.sh
+# If you use rootless Docker by default, force system socket for this build:
+export DOCKER_HOST=unix:///run/docker.sock
+./.cursor/run-odroid-hc4-kiwi-build.sh
+# Or: sg docker -c 'DOCKER_HOST=unix:///run/docker.sock ./.cursor/run-odroid-hc4-kiwi-build.sh'
+```
+
+Both entry points run **`scripts/prepare-hc4-build-host.sh --docker`** then **`scripts/validate-hc4-build-host.sh --docker`**, remove previous **`$ROCKSTOR_KIWI_TARGET/build`** and partial image artifacts, and start **`bash /workspace/scripts/hc4-kiwi-build-inner.sh build`** in the worker. Prepare creates output directories, installs **`curl`** / **`dpkg`** when possible, **re-fetches** Armbian **`root/boot/u-boot.bin`** (unless `ROCKSTOR_SKIP_UBOOT_FETCH=1`), **builds** `rockstor-worker:arm64` when missing, and can rebuild **`odroid-hc4.dtb`**. Debug pre-flight manually:
+
+```shell
+export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
+export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
+export ROCKSTOR_KIWI_VAR_TMP="$HOME/kiwi-var-tmp"
+export DOCKER_HOST=unix:///run/docker.sock
 scripts/prepare-hc4-build-host.sh --docker
 scripts/validate-hc4-build-host.sh --docker   # or --native before sudo kiwi-ng
 ```
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
+| `ROCKSTOR_KIWI_CONTAINER` | `rockstor-odroid-hc4-build` | Detached build container name |
 | `ROCKSTOR_HC4_AUTO_PREPARE` | `1` | Run prepare step (set `0` to skip) |
 | `ROCKSTOR_HC4_AUTO_BUILD_WORKER` | `1` | `docker build` worker image when missing |
 | `ROCKSTOR_HC4_AUTO_INSTALL_HOST_DEPS` | `1` | `zypper`/`apt` install `curl`, `dpkg`, etc. |
 | `ROCKSTOR_HC4_AUTO_BUILD_DTB` | `1` | Run `build-hc4-linux-dtb.sh` if DTB missing |
 | `ROCKSTOR_SKIP_HC4_VALIDATE` | `0` | Skip validation only |
+| `ROCKSTOR_SKIP_WORKER_BUILD` | `0` | Skip worker image build (`run-hc4-system-docker-build.sh` only) |
 
 Set `ROCKSTOR_SKIP_HC4_VALIDATE=1` to bypass validation. Minimum free space defaults: **15 GB** target, **10 GB** cache, **5 GB** `ROCKSTOR_KIWI_VAR_TMP` (override with `ROCKSTOR_HC4_MIN_FREE_*_GB`).
 
-The HC4 helper fetches **`root/boot/u-boot.bin`** unless `ROCKSTOR_SKIP_UBOOT_FETCH=1` and that file already exists. Override **`ROCKSTOR_KIWI_TARGET`**, **`ROCKSTOR_KIWI_CACHE`**, and **`ROCKSTOR_KIWI_VAR_TMP`** — the script defaults to `/mnt/bdata/...`, which may not exist on a new host.
+**Monitor:**
 
-Monitor: `docker logs -f rockstor-odroid-hc4-build`. On success the installer is **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** (plus `.packages`, `.changes`, `.verified`, `kiwi.result`). Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
+```shell
+docker logs -f rockstor-odroid-hc4-build
+tail -f "${ROCKSTOR_KIWI_TARGET}/build/image-root.log"
+docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' rockstor-odroid-hc4-build
+```
+
+**Success:** container exit code **0**; **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** with multi‑GB actual size (`du -h`), plus **`.packages`**, **`.changes`**, **`.verified`**, **`kiwi.result`**. Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
+
+**Clean restart** (if a run failed mid-way): both helpers already delete `build/` and partial outputs before starting; to wipe manually:
+
+```shell
+docker rm -f rockstor-odroid-hc4-build
+docker run --rm --user 0:0 -v "$ROCKSTOR_KIWI_TARGET:/home/kiwi-images" rockstor-worker:arm64 \
+  rm -rf /home/kiwi-images/build /home/kiwi-images/*.raw /home/kiwi-images/kiwi.result*
+```
 
 **Option B — Native openSUSE aarch64** (Leap 15.6 / Tumbleweed with `python3-kiwi` and build dependencies per `vagrant_env/` / README):
 
