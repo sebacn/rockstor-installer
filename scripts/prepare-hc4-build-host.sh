@@ -106,11 +106,22 @@ if [[ "${SKIP_UBOOT_FETCH}" != 1 ]]; then
 	install_cmd_if_missing curl curl
 fi
 
-if [[ "${SKIP_UBOOT_FETCH}" != 1 && ! -f "${REPO_ROOT}/root/boot/u-boot.bin" ]]; then
-	log "fetching root/boot/u-boot.bin (scripts/fetch-uboot-odroid-hc4.sh)"
+should_fetch_uboot=0
+if [[ "${SKIP_UBOOT_FETCH}" != 1 ]]; then
+	if [[ ! -f "${REPO_ROOT}/root/boot/u-boot.bin" ]]; then
+		should_fetch_uboot=1
+	elif [[ "${UBOOT_SOURCE}" == armbian ]]; then
+		# README: refresh latest Armbian linux-u-boot-odroidhc4-current before each HC4 build.
+		should_fetch_uboot=1
+	elif [[ "${ROCKSTOR_UBOOT_ALWAYS_FETCH:-0}" == 1 ]]; then
+		should_fetch_uboot=1
+	fi
+fi
+if [[ "${should_fetch_uboot}" == 1 ]]; then
+	log "fetching root/boot/u-boot.bin (scripts/fetch-uboot-odroid-hc4.sh, source=${UBOOT_SOURCE})"
 	bash "${REPO_ROOT}/scripts/fetch-uboot-odroid-hc4.sh"
 elif [[ -f "${REPO_ROOT}/root/boot/u-boot.bin" ]]; then
-	log "root/boot/u-boot.bin already present"
+	log "root/boot/u-boot.bin already present (fetch skipped or legacy source=${UBOOT_SOURCE})"
 fi
 
 if [[ "${AUTO_BUILD_DTB}" == 1 && ! -f "${REPO_ROOT}/root/boot/odroid-hc4.dtb" ]]; then

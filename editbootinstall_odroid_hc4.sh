@@ -7,8 +7,8 @@ set -euxo pipefail
 
 diskname=$1
 devname="$2"
-loopname="${devname%*p?}"
-loopdev=${loopname#/dev/mapper/*}
+# kpartx: /dev/mapper/loop0p1 -> /dev/mapper/loop0; loop: /dev/loop0p1 -> /dev/loop0
+loopdev="${devname%*p?}"
 
 # Kiwi runs: cd <image-root> && bash .../image/edit_boot_install.sh <disk> <boot-partition>
 image_root="$(pwd)"
@@ -52,8 +52,11 @@ if [ -n "$uboot_bin" ] && [ -f "$uboot_bin" ]; then
     # Kiwi HC4 images use disk_start_sector=8192; FAT @ 2048 only fits smaller U-Boot.
     boot_start=8192
     if command -v fdisk >/dev/null 2>&1; then
-        boot_start=$(fdisk -l "$loopdev" 2>/dev/null | awk -v p="${devname##*/}" '$1 ~ p"$" {print $2; exit}')
-        boot_start=${boot_start:-8192}
+        part_id="${devname##*/}"
+        detected=$(fdisk -l "$loopdev" 2>/dev/null | awk -v p="$part_id" '$1 ~ p"$" {print $2; exit}') || true
+        if [[ -n "${detected}" ]]; then
+            boot_start="${detected}"
+        fi
     fi
     if (( uboot_last >= boot_start )); then
         echo "ODROID HC4: ERROR: u-boot.bin ends at sector ${uboot_last}; boot partition starts at ${boot_start}" >&2
@@ -71,6 +74,17 @@ fi
 boot_part="${devname}"
 if [ -b "${boot_part}" ]; then
     echo "ODROID HC4: recreating FAT boot on ${boot_part} after U-Boot install"
+    # Kiwi may still have the boot partition mounted (e.g. /var/tmp/kiwi_mount_manager.*).
+    if command -v findmnt >/dev/null 2>&1; then
+        while read -r mnt; do
+            [ -n "${mnt}" ] || continue
+            echo "ODROID HC4: unmounting ${mnt} (${boot_part}) before mkfs.vfat"
+            umount "${mnt}" || umount -l "${mnt}"
+        done < <(findmnt -rn -S "${boot_part}" -o TARGET 2>/dev/null || true)
+    fi
+    if mountpoint -q "${boot_part}" 2>/dev/null || findmnt -S "${boot_part}" >/dev/null 2>&1; then
+        umount "${boot_part}" || umount -l "${boot_part}"
+    fi
     mkfs.vfat -F 32 -n BOOT "${boot_part}"
     boot_mnt=$(mktemp -d)
     mount "${boot_part}" "${boot_mnt}"

@@ -4,13 +4,23 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IMAGE="${ROCKSTOR_WORKER_IMAGE:-rockstor-worker:arm64}"
 CONTAINER_NAME="${ROCKSTOR_KIWI_CONTAINER:-rockstor-odroid-hc4-build}"
-TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-/mnt/bdata/kiwi-images-hc4}"
-CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-/mnt/bdata/cache}"
-KIWI_VAR_TMP="${ROCKSTOR_KIWI_VAR_TMP:-/mnt/bdata/kiwi-var-tmp}"
+if [[ -z "${ROCKSTOR_KIWI_TARGET:-}" && ! -d /mnt/bdata ]]; then
+  TARGET_DIR="${HOME}/kiwi-images-hc4"
+  CACHE_DIR="${HOME}/kiwi-cache"
+  KIWI_VAR_TMP="${HOME}/kiwi-var-tmp"
+else
+  TARGET_DIR="${ROCKSTOR_KIWI_TARGET:-/mnt/bdata/kiwi-images-hc4}"
+  CACHE_DIR="${ROCKSTOR_KIWI_CACHE:-/mnt/bdata/cache}"
+  KIWI_VAR_TMP="${ROCKSTOR_KIWI_VAR_TMP:-/mnt/bdata/kiwi-var-tmp}"
+fi
 LOG="${ROCKSTOR_KIWI_LOG:-$HOME/kiwi-build-odroid-hc4.log}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 KIWI_PREP_PKGS="util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd"
 run_root() { if [[ "$(id -u)" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
+if [[ "${DOCKER_HOST:-}" == *"/run/user/"*"/docker.sock" ]]; then
+  echo "WARNING: rootless Docker (DOCKER_HOST=${DOCKER_HOST}) cannot run kiwi-ng system build." >&2
+  echo "Use system Docker instead: sudo -E bash scripts/run-hc4-system-docker-build.sh" >&2
+fi
 export ROCKSTOR_KIWI_TARGET="$TARGET_DIR" ROCKSTOR_KIWI_CACHE="$CACHE_DIR" ROCKSTOR_KIWI_VAR_TMP="$KIWI_VAR_TMP"
 export ROCKSTOR_WORKER_IMAGE="$IMAGE"
 export ROCKSTOR_UBOOT_SOURCE="${ROCKSTOR_UBOOT_SOURCE:-armbian}"
@@ -50,6 +60,6 @@ run_root docker run -d --name "$CONTAINER_NAME" --privileged --cap-add SYS_ADMIN
   -e TMPDIR=/var/tmp \
   -w /workspace \
   "$IMAGE" \
-  sudo bash -c 'set -e; zypper --non-interactive in -y '"$KIWI_PREP_PKGS"'; command -v lsblk >/dev/null; modprobe loop max_part=8 2>/dev/null || true; sysctl -w fs.protected_symlinks=0 fs.protected_hardlinks=0 >/dev/null 2>&1 || true; exec kiwi-ng --shared-cache-dir=/kiwi-package-cache --profile='"$PROFILE"' --type oem system build --description ./ --target-dir /home/kiwi-images/' \
+  bash /workspace/scripts/hc4-kiwi-build-inner.sh build \
   >/dev/null
 echo "Started $CONTAINER_NAME profile=$PROFILE (detached). Log: docker logs -f $CONTAINER_NAME  (or tee $LOG)"
