@@ -21,13 +21,27 @@ if [[ ! -f "$UBOOT" ]]; then
 	exit 1
 fi
 
-if ! dd if="$IMAGE" bs=1 count=442 2>/dev/null | cmp -s - "$UBOOT" -n 442; then
+# kiwi edit_boot_install often runs with a minimal PATH (no cmp); use sha256 of byte ranges.
+digest_range() {
+	local file=$1 offset=$2 count=$3
+	dd if="$file" bs=1 skip="$offset" count="$count" 2>/dev/null | sha256sum | awk '{print $1}'
+}
+
+digest_sector1() {
+	local file=$1
+	dd if="$file" bs=512 skip=1 count=1 2>/dev/null | sha256sum | awk '{print $1}'
+}
+
+h_img=$(digest_range "$IMAGE" 0 442)
+h_uboot=$(digest_range "$UBOOT" 0 442)
+if [[ -z "$h_img" || "$h_img" != "$h_uboot" ]]; then
 	echo "validate-hc4-raw-uboot: ERROR: bytes 0–441 do not match ${UBOOT} on ${IMAGE}" >&2
 	exit 1
 fi
 
-# Sector 1 should match u-boot.bin payload (skip 442-byte header, dd sector-aligned part).
-if ! dd if="$IMAGE" bs=512 skip=1 count=1 2>/dev/null | cmp -s - <(dd if="$UBOOT" bs=512 skip=1 count=1 2>/dev/null); then
+s_img=$(digest_sector1 "$IMAGE")
+s_uboot=$(digest_sector1 "$UBOOT")
+if [[ -z "$s_img" || "$s_img" != "$s_uboot" ]]; then
 	echo "validate-hc4-raw-uboot: ERROR: sector 1 payload mismatch on ${IMAGE}" >&2
 	exit 1
 fi

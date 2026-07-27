@@ -163,7 +163,9 @@ for validate in "${image_root}/../scripts/validate-hc4-raw-uboot.sh" "/workspace
 	fi
 done
 
-if ! dd if="$uboot_target" bs=1 count=442 2>/dev/null | cmp -s - "$uboot_bin" -n 442; then
+if ! h1=$(dd if="$uboot_target" bs=1 count=442 2>/dev/null | sha256sum | awk '{print $1}') \
+	|| ! h2=$(dd if="$uboot_bin" bs=1 count=442 2>/dev/null | sha256sum | awk '{print $1}') \
+	|| [[ -z "$h1" || "$h1" != "$h2" ]]; then
 	echo "ODROID HC4: ERROR: U-Boot header verify failed on ${uboot_target}" >&2
 	exit 1
 fi
