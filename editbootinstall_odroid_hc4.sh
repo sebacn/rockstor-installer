@@ -114,7 +114,19 @@ if [ -b "${boot_part}" ]; then
 	fi
 	if [ -f "${image_root}/boot/extlinux/extlinux.conf" ]; then
 		mkdir -p "${boot_mnt}/extlinux"
-		cp -a "${image_root}/boot/extlinux/extlinux.conf" "${boot_mnt}/extlinux/"
+		extlinux_tmp=$(mktemp)
+		cp -a "${image_root}/boot/extlinux/extlinux.conf" "${extlinux_tmp}"
+		for patch_extlinux in \
+			"${image_root}/../scripts/patch-hc4-extlinux-root.sh" \
+			"${image_root}/scripts/patch-hc4-extlinux-root.sh" \
+			"/workspace/scripts/patch-hc4-extlinux-root.sh"; do
+			if [ -x "$patch_extlinux" ]; then
+				"$patch_extlinux" "${extlinux_tmp}" "${loopdev}"
+				break
+			fi
+		done
+		cp -a "${extlinux_tmp}" "${boot_mnt}/extlinux/extlinux.conf"
+		rm -f "${extlinux_tmp}"
 	fi
 	umount "${boot_mnt}"
 	rmdir "${boot_mnt}"

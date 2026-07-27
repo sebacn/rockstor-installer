@@ -44,7 +44,11 @@ fi
 "${REPO_ROOT}/scripts/build-hc4-linux-dtb.sh" "${REPO_ROOT}/root/boot/odroid-hc4.dtb"
 cp "${REPO_ROOT}/root/boot/odroid-hc4.dtb" "$mnt/"
 mkdir -p "$mnt/extlinux"
-cp "${REPO_ROOT}/root/boot/extlinux/extlinux.conf" "$mnt/extlinux/"
+extlinux_tmp=$(mktemp)
+cp "${REPO_ROOT}/root/boot/extlinux/extlinux.conf" "$extlinux_tmp"
+"${REPO_ROOT}/scripts/patch-hc4-extlinux-root.sh" "$extlinux_tmp" "$DEV"
+cp "$extlinux_tmp" "$mnt/extlinux/extlinux.conf"
+rm -f "$extlinux_tmp"
 sync
 umount "$mnt"
 rmdir "$mnt"
