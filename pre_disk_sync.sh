@@ -57,3 +57,27 @@ for search_root in /boot /usr/lib/modules; do
         materialize_symlink "$link"
     done
 done
+
+#======================================
+# HC4: fstab by partition label (BOOT/SWAP/ROOT), not UUID
+# Kiwi uses devicepersistency=by-uuid; edit_boot_install recreates FAT /boot (new UUID).
+# Swap is not in extlinux (no dracut hang), but mkswap during migrate changes UUID too.
+#--------------------------------------
+if [[ "${kiwi_profiles:-}${kiwi_profile:-}" == *OdroidHC4* && -f /etc/fstab ]]; then
+    awk '
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { print; next }
+    {
+        line = $0
+        if (line ~ /[[:space:]]swap[[:space:]]+swap/ || line ~ /[[:space:]]none[[:space:]]+swap/) {
+            sub(/^[^[:space:]]+/, "LABEL=SWAP", line); print line; next
+        }
+        if (line ~ /[[:space:]]\/boot[[:space:]]+vfat/) {
+            sub(/^[^[:space:]]+/, "LABEL=BOOT", line); print line; next
+        }
+        if (line ~ /[[:space:]]\/[[:space:]]+btrfs/) {
+            sub(/^[^[:space:]]+/, "LABEL=ROOT", line); print line; next
+        }
+        print
+    }' /etc/fstab > /etc/fstab.hc4labels && mv /etc/fstab.hc4labels /etc/fstab
+    echo "-- HC4 /etc/fstab: use LABEL=BOOT, LABEL=SWAP, LABEL=ROOT -----"
+fi

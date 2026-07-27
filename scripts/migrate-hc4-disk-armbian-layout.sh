@@ -157,5 +157,16 @@ rmdir "$mnt"
 
 _expand_hc4_root_partition "$DEV" "$P3"
 
+root_mnt=$(mktemp -d)
+if mount -o rw,subvol=@/.snapshots/1/snapshot "$P3" "$root_mnt" 2>/dev/null \
+	|| mount -o rw "$P3" "$root_mnt" 2>/dev/null; then
+	if [[ -f "${root_mnt}/etc/fstab" ]]; then
+		"${REPO_ROOT}/scripts/patch-hc4-fstab-labels.sh" "${root_mnt}/etc/fstab"
+		echo "Updated /etc/fstab to LABEL=BOOT / LABEL=SWAP / LABEL=ROOT after migration"
+	fi
+	umount "$root_mnt"
+fi
+rmdir "$root_mnt" 2>/dev/null || true
+
 echo "Migration complete. Safe to remove ${ROOT_IMG} after boot test."
 echo "Boot HC4 from microSD; U-Boot should pass ROM + load extlinux from mmc 0:1."

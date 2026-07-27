@@ -89,27 +89,16 @@ case "$DEV" in
 *) ROOT_PART="${DEV}3" ;;
 esac
 if [[ -b "$ROOT_PART" ]]; then
-	boot_uuid=$(blkid -s UUID -o value "${BOOT_PART}" 2>/dev/null || true)
-	swap_part="${DEV}p2"
-	[[ "$DEV" == *mmcblk* ]] || swap_part="${DEV}2"
-	swap_uuid=$(blkid -s UUID -o value "$swap_part" 2>/dev/null || true)
-	if [[ -n "$boot_uuid" || -n "$swap_uuid" ]]; then
-		root_mnt=$(mktemp -d)
-		if mount -o rw "$ROOT_PART" "$root_mnt" 2>/dev/null; then
-			if [[ -f "${root_mnt}/etc/fstab" ]]; then
-				if [[ -n "$boot_uuid" ]]; then
-					sed -i "s|^UUID=.* /boot vfat|UUID=${boot_uuid} /boot vfat|" "${root_mnt}/etc/fstab"
-					echo "Updated /etc/fstab /boot UUID to ${boot_uuid}"
-				fi
-				if [[ -n "$swap_uuid" ]]; then
-					sed -i "s|^UUID=.* swap swap|UUID=${swap_uuid} swap swap|" "${root_mnt}/etc/fstab"
-					echo "Updated /etc/fstab swap UUID to ${swap_uuid}"
-				fi
-			fi
-			umount "$root_mnt"
+	root_mnt=$(mktemp -d)
+	if mount -o rw,subvol=@/.snapshots/1/snapshot "$ROOT_PART" "$root_mnt" 2>/dev/null \
+		|| mount -o rw "$ROOT_PART" "$root_mnt" 2>/dev/null; then
+		if [[ -f "${root_mnt}/etc/fstab" ]]; then
+			"${REPO_ROOT}/scripts/patch-hc4-fstab-labels.sh" "${root_mnt}/etc/fstab"
+			echo "Ensured /etc/fstab uses LABEL=BOOT and LABEL=SWAP (FAT/swap may have been recreated)"
 		fi
-		rmdir "$root_mnt" 2>/dev/null || true
+		umount "$root_mnt"
 	fi
+	rmdir "$root_mnt" 2>/dev/null || true
 fi
 
 echo "Done. On HC4: reset; fatls mmc 0:1 should list Image and extlinux."
