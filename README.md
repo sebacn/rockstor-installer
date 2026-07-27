@@ -438,7 +438,50 @@ docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' rockstor-odroid-h
 
 **Success:** container exit code **0**; **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** with multi‑GB actual size (`du -h`), plus **`.packages`**, **`.changes`**, **`.verified`**, **`kiwi.result`**. Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
 
-**Clean restart** (if a run failed mid-way): both helpers already delete `build/` and partial outputs before starting; to wipe manually:
+#### Flashing the installer to microSD / USB (interactive helper)
+
+**`scripts/flash-rockstor-image-to-disk.sh`** writes a kiwi **`.raw`** or **`.raw.xz`** image to a removable block device (USB SD reader → `/dev/sda`, `/dev/sdb`, …). It:
+
+- lists images in a directory (default **`$HOME/kiwi-images-hc4`**, or **`ROCKSTOR_IMAGE_DIR`** / **`ROCKSTOR_KIWI_TARGET`**);
+- decompresses **`.xz`** / **`.txz`** on the fly (`xz`; uses **`pv`** for decompression progress when installed);
+- lists whole disks with size/model/transport, **excluding the host root disk**;
+- unmounts target partitions, then runs **`dd`** with **`status=progress`**;
+- asks you to type **`YES`** before erasing the card (skip with **`-y`**).
+
+Requires **`dd`**, **`lsblk`**, **`findmnt`** (and **`xz`** for compressed images). If a command is missing, the script lists the **zypper** / **apt** packages and asks whether to install them (`ROCKSTOR_FLASH_AUTO_INSTALL_DEPS=1` or **`-y`** skips that prompt). Optional **`pv`** improves progress display for `.xz` flashes.
+
+**Interactive** (from repo root, SD card attached via USB):
+
+```shell
+chmod +x scripts/flash-rockstor-image-to-disk.sh
+sudo scripts/flash-rockstor-image-to-disk.sh
+```
+
+Pick the image number, then the destination disk, then confirm with **`YES`**.
+
+**Non-interactive** example (same paths as the Docker build):
+
+```shell
+export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
+sudo scripts/flash-rockstor-image-to-disk.sh \
+  --image-dir "$ROCKSTOR_KIWI_TARGET" \
+  --image "$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-5.5.3-0.raw" \
+  --device /dev/sda \
+  -y
+```
+
+**Compressed image:**
+
+```shell
+sudo scripts/flash-rockstor-image-to-disk.sh \
+  --image-dir "$HOME/kiwi-images-hc4" \
+  --image "$HOME/kiwi-images-hc4/Rockstor-NAS.aarch64-5.5.3-0.raw.xz" \
+  --device /dev/sdb
+```
+
+Always verify the destination with **`lsblk`** before confirming—**`dd` overwrites the entire device**. Flash **HC4 boot media** (microSD or eMMC), not a SATA data disk. The kiwi image already includes U-Boot; use **`scripts/write-uboot-odroid-hc4-to-disk.sh`** only if you repaired the card without that step.
+
+**Clean restart** (if a kiwi Docker run failed mid-way): both helpers already delete `build/` and partial outputs before starting; to wipe manually:
 
 ```shell
 docker rm -f rockstor-odroid-hc4-build
@@ -462,7 +505,7 @@ sudo kiwi-ng --profile=Tumbleweed.OdroidHC4 --type oem system build \
 **Notes**
 
 - Committed **`odroid-hc4.dtb`** is enough for a successful build. Run **`scripts/build-hc4-linux-dtb.sh`** after **`fetch-uboot-odroid-hc4.sh`** if you want the DTB patches applied to the **same** Armbian U-Boot version you just fetched.
-- Flash the **`.raw`** to HC4 **microSD or eMMC** (not a SATA disk). The kiwi post-install step already writes U-Boot; re-run **`scripts/write-uboot-odroid-hc4-to-disk.sh`** only if you repaired the card without that step.
+- Flash the **`.raw`** to HC4 **microSD or eMMC** (not a SATA disk). Prefer **`scripts/flash-rockstor-image-to-disk.sh`** (see above). The kiwi post-install step already writes U-Boot; re-run **`scripts/write-uboot-odroid-hc4-to-disk.sh`** only if you repaired the card without that step.
 - **Cursor managed x86_64 cloud agents** cannot run this profile; use arm64 hardware or a self-hosted worker.
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
