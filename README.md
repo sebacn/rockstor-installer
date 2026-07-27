@@ -463,6 +463,7 @@ sudo kiwi-ng --profile=Tumbleweed.OdroidHC4 --type oem system build \
 
 - Committed **`odroid-hc4.dtb`** is enough for a successful build. Run **`scripts/build-hc4-linux-dtb.sh`** after **`fetch-uboot-odroid-hc4.sh`** if you want the DTB patches applied to the **same** Armbian U-Boot version you just fetched.
 - Flash the **`.raw`** to HC4 **microSD or eMMC** (not a SATA disk). The kiwi post-install step already writes U-Boot; re-run **`scripts/write-uboot-odroid-hc4-to-disk.sh`** only if you repaired the card without that step.
+- Interactive flash helper (`.raw` or `.xz`, pick USB/SD disk, excludes root): **`sudo scripts/flash-rockstor-image-to-disk.sh`** (optional `--image-dir`, `--image`, `--device`).
 - **Cursor managed x86_64 cloud agents** cannot run this profile; use arm64 hardware or a self-hosted worker.
 
 The resulting **`.raw`** image is written to the HC4 boot media (eMMC or microSD) with `dd` or similar. Verify boot on real HC4 hardware;
