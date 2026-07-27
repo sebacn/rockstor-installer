@@ -97,6 +97,8 @@ case "${1:-build}" in
 		for _raw in "${_raw_images[@]}"; do
 			echo "hc4-kiwi-build-inner: validating U-Boot on ${_raw}"
 			bash /workspace/scripts/validate-hc4-raw-uboot.sh "${_raw}" /workspace/root/boot/u-boot.bin
+			echo "hc4-kiwi-build-inner: validating extlinux root= on ${_raw}"
+			bash /workspace/scripts/validate-hc4-extlinux-root.sh "${_raw}"
 		done
 		;;
 	*)
