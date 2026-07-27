@@ -436,7 +436,7 @@ tail -f "${ROCKSTOR_KIWI_TARGET}/build/image-root.log"
 docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' rockstor-odroid-hc4-build
 ```
 
-**Success:** container exit code **0**; **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** with multi‑GB actual size (`du -h`), plus **`.packages`**, **`.changes`**, **`.verified`**, **`kiwi.result`**. Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
+**Success:** container exit code **0**; **`$ROCKSTOR_KIWI_TARGET/Rockstor-NAS.aarch64-*.raw`** with multi‑GB actual size (`du -h`), plus **`.packages`**, **`.changes`**, **`.verified`**, **`kiwi.result`**. The inner build script runs **`scripts/validate-hc4-raw-uboot.sh`** on each `.raw` (Armbian bytes @ LBA0 + sector 1). Zypper cache behaviour matches the Pi5 Docker section (`ROCKSTOR_KIWI_CLEAR_CACHE`, `ROCKSTOR_KIWI_REFRESH_REPOS`).
 
 #### Flashing the installer to microSD / USB (interactive helper)
 
@@ -479,7 +479,11 @@ sudo scripts/flash-rockstor-image-to-disk.sh \
   --device /dev/sdb
 ```
 
-Always verify the destination with **`lsblk`** before confirming—**`dd` overwrites the entire device**. Flash **HC4 boot media** (microSD or eMMC), not a SATA data disk. The kiwi image already includes U-Boot; use **`scripts/write-uboot-odroid-hc4-to-disk.sh`** only if you repaired the card without that step.
+Always verify the destination with **`lsblk`** before confirming—**`dd` overwrites the entire device**. Flash **HC4 boot media** (microSD or eMMC), not a SATA data disk.
+
+New kiwi builds run **`scripts/validate-hc4-raw-uboot.sh`** on the `.raw` after build. The flash helper can verify U-Boot on the card after **`dd`** and offer **`scripts/apply-uboot-odroid-hc4-to-image.sh`** if an older image lacks it (`ROCKSTOR_FLASH_VALIDATE_UBOOT=0` to skip).
+
+The kiwi post-install step writes U-Boot into the **`.raw` file** (not only the transient loop device); re-run **`scripts/write-uboot-odroid-hc4-to-disk.sh`** or **`scripts/apply-uboot-odroid-hc4-to-image.sh`** if you repaired a card without that step.
 
 **Clean restart** (if a kiwi Docker run failed mid-way): both helpers already delete `build/` and partial outputs before starting; to wipe manually:
 

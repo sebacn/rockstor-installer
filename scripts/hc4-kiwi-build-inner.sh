@@ -82,12 +82,22 @@ case "${1:-build}" in
 		verify_kiwi_msdos_patch
 		install_kiwi_kpartx_mapper
 		if [[ "$(id -u)" -eq 0 ]]; then
-			exec kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
+			kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
 				--description /workspace --target-dir "${TARGET_DIR}"
 		else
-			exec sudo kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
+			sudo kiwi-ng --shared-cache-dir="${CACHE_DIR}" --profile="${PROFILE}" --type oem system build \
 				--description /workspace --target-dir "${TARGET_DIR}"
 		fi
+		shopt -s nullglob
+		_raw_images=("${TARGET_DIR}"/Rockstor-NAS.aarch64-*.raw)
+		if [[ ${#_raw_images[@]} -eq 0 ]]; then
+			echo "hc4-kiwi-build-inner: ERROR: no Rockstor-NAS.aarch64-*.raw in ${TARGET_DIR}" >&2
+			exit 1
+		fi
+		for _raw in "${_raw_images[@]}"; do
+			echo "hc4-kiwi-build-inner: validating U-Boot on ${_raw}"
+			bash /workspace/scripts/validate-hc4-raw-uboot.sh "${_raw}" /workspace/root/boot/u-boot.bin
+		done
 		;;
 	*)
 		echo "Usage: $0 [build|patch-only]" >&2

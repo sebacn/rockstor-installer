@@ -358,6 +358,28 @@ flash_image() {
 	if command -v blockdev >/dev/null 2>&1; then
 		blockdev --flushbufs "$dev" 2>/dev/null || true
 	fi
+	local repo_root flash_validate apply_uboot
+	repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	flash_validate="${repo_root}/scripts/validate-hc4-raw-uboot.sh"
+	apply_uboot="${repo_root}/scripts/apply-uboot-odroid-hc4-to-image.sh"
+	if [[ "${ROCKSTOR_FLASH_VALIDATE_UBOOT:-1}" == 1 && -x "$flash_validate" ]]; then
+		if ! "$flash_validate" "$dev" 2>/dev/null; then
+			echo "WARNING: Armbian U-Boot not detected on ${dev} after flash." >&2
+			echo "         Kiwi images built before the U-Boot-on-.raw fix need a post-flash U-Boot write." >&2
+			if [[ -x "$apply_uboot" ]]; then
+				if [[ "${ASSUME_YES}" == 1 ]]; then
+					"$apply_uboot" "$dev"
+				else
+					read -r -p "Write U-Boot to ${dev} now? [y/N] " answer
+					if [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]; then
+						"$apply_uboot" "$dev"
+					fi
+				fi
+			fi
+		else
+			echo "U-Boot layout verified on ${dev}."
+		fi
+	fi
 	echo "Done. Safely remove the card or reboot from it."
 }
 
