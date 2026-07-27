@@ -7,8 +7,8 @@ set -euxo pipefail
 
 diskname=$1
 devname="$2"
-loopname="${devname%*p?}"
-loopdev=${loopname#/dev/mapper/*}
+# kpartx: /dev/mapper/loop0p1 -> /dev/mapper/loop0; loop: /dev/loop0p1 -> /dev/loop0
+loopdev="${devname%*p?}"
 
 # Kiwi runs: cd <image-root> && bash .../image/edit_boot_install.sh <disk> <boot-partition>
 image_root="$(pwd)"
@@ -52,8 +52,11 @@ if [ -n "$uboot_bin" ] && [ -f "$uboot_bin" ]; then
     # Kiwi HC4 images use disk_start_sector=8192; FAT @ 2048 only fits smaller U-Boot.
     boot_start=8192
     if command -v fdisk >/dev/null 2>&1; then
-        boot_start=$(fdisk -l "$loopdev" 2>/dev/null | awk -v p="${devname##*/}" '$1 ~ p"$" {print $2; exit}')
-        boot_start=${boot_start:-8192}
+        part_id="${devname##*/}"
+        detected=$(fdisk -l "$loopdev" 2>/dev/null | awk -v p="$part_id" '$1 ~ p"$" {print $2; exit}') || true
+        if [[ -n "${detected}" ]]; then
+            boot_start="${detected}"
+        fi
     fi
     if (( uboot_last >= boot_start )); then
         echo "ODROID HC4: ERROR: u-boot.bin ends at sector ${uboot_last}; boot partition starts at ${boot_start}" >&2
