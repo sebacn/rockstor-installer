@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Pre-flight checks before Tumbleweed.OdroidHC4 kiwi-ng image build.
 # Usage: scripts/validate-hc4-build-host.sh [--docker|--native]
-# Env: same ROCKSTOR_* paths as .cursor/run-odroid-hc4-kiwi-build.sh; ROCKSTOR_SKIP_HC4_VALIDATE=1 to skip.
+# Env: same ROCKSTOR_* paths as .cursor/run-odroid-hc4-kiwi-build.sh and
+# scripts/run-hc4-system-docker-build.sh; ROCKSTOR_SKIP_HC4_VALIDATE=1 to skip.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
