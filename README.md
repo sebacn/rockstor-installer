@@ -448,7 +448,7 @@ docker inspect -f '{{.State.Status}} exit={{.State.ExitCode}}' rockstor-odroid-h
 - unmounts target partitions, then runs **`dd`** with **`status=progress`**;
 - asks you to type **`YES`** before erasing the card (skip with **`-y`**).
 
-Requires **`dd`**, **`lsblk`**, **`findmnt`**; run as root (the script re-invokes **`sudo`** when needed).
+Requires **`dd`**, **`lsblk`**, **`findmnt`** (and **`xz`** for compressed images). If a command is missing, the script lists the **zypper** / **apt** packages and asks whether to install them (`ROCKSTOR_FLASH_AUTO_INSTALL_DEPS=1` or **`-y`** skips that prompt). Optional **`pv`** improves progress display for `.xz` flashes.
 
 **Interactive** (from repo root, SD card attached via USB):
 

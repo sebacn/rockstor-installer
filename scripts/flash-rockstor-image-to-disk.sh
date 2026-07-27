@@ -23,9 +23,146 @@ Options:
 
 Environment:
   ROCKSTOR_IMAGE_DIR, ROCKSTOR_KIWI_TARGET  Default image search directory
+  ROCKSTOR_FLASH_AUTO_INSTALL_DEPS=1        Install missing packages without prompting
 
 Must be run as root (script re-execs via sudo when needed).
 EOF
+}
+
+zypper_pkg_for_cmd() {
+	case "$1" in
+		dd|numfmt) echo coreutils ;;
+		lsblk|findmnt|umount|blockdev) echo util-linux ;;
+		xz) echo xz ;;
+		pv) echo pv ;;
+		*) return 1 ;;
+	esac
+}
+
+apt_pkg_for_cmd() {
+	case "$1" in
+		dd|numfmt) echo coreutils ;;
+		lsblk|findmnt|umount|blockdev) echo util-linux ;;
+		xz) echo xz-utils ;;
+		pv) echo pv ;;
+		*) return 1 ;;
+	esac
+}
+
+install_distro_packages() {
+	local -a zypper_pkgs=() apt_pkgs=()
+	local pkg
+	for pkg in "$@"; do
+		case "$pkg" in
+			zypper:*) zypper_pkgs+=("${pkg#zypper:}") ;;
+			apt:*) apt_pkgs+=("${pkg#apt:}") ;;
+		esac
+	done
+	if [[ ${#zypper_pkgs[@]} -gt 0 ]] && command -v zypper >/dev/null 2>&1; then
+		echo "Installing via zypper: ${zypper_pkgs[*]}"
+		zypper --non-interactive install -y "${zypper_pkgs[@]}"
+	elif [[ ${#apt_pkgs[@]} -gt 0 ]] && command -v apt-get >/dev/null 2>&1; then
+		echo "Installing via apt: ${apt_pkgs[*]}"
+		apt-get update -qq || true
+		apt-get install -y "${apt_pkgs[@]}"
+	else
+		echo "ERROR: no supported package manager (zypper or apt-get) to install: $*" >&2
+		return 1
+	fi
+}
+
+# Offer to install distro packages for missing commands; exits 1 if still missing.
+ensure_commands() {
+	local -a cmds=("$@")
+	local -a missing=()
+	local cmd zypper_pkg apt_pkg
+	local -a to_install=()
+	local seen_zypper="" seen_apt=""
+	local answer
+
+	for cmd in "${cmds[@]}"; do
+		command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+	done
+	[[ ${#missing[@]} -eq 0 ]] && return 0
+
+	echo "Missing command(s): ${missing[*]}"
+	for cmd in "${missing[@]}"; do
+		zypper_pkg=$(zypper_pkg_for_cmd "$cmd" || true)
+		apt_pkg=$(apt_pkg_for_cmd "$cmd" || true)
+		if [[ -z "$zypper_pkg" && -z "$apt_pkg" ]]; then
+			echo "ERROR: no package mapping for '${cmd}'; install it manually." >&2
+			exit 1
+		fi
+		[[ -n "$zypper_pkg" ]] && to_install+=("zypper:${zypper_pkg}")
+		[[ -n "$apt_pkg" ]] && to_install+=("apt:${apt_pkg}")
+		echo "  ${cmd} -> zypper: ${zypper_pkg:-n/a}, apt: ${apt_pkg:-n/a}"
+	done
+
+	# Deduplicate package entries.
+	local -a unique_install=()
+	local -A seen_zypper=() seen_apt=()
+	local item p
+	for item in "${to_install[@]}"; do
+		case "$item" in
+			zypper:*)
+				p="${item#zypper:}"
+				[[ -n "${seen_zypper[$p]:-}" ]] && continue
+				seen_zypper[$p]=1
+				unique_install+=("$item")
+				;;
+			apt:*)
+				p="${item#apt:}"
+				[[ -n "${seen_apt[$p]:-}" ]] && continue
+				seen_apt[$p]=1
+				unique_install+=("$item")
+				;;
+		esac
+	done
+
+	if [[ "${ROCKSTOR_FLASH_AUTO_INSTALL_DEPS:-0}" != 1 && "${ASSUME_YES}" != 1 ]]; then
+		read -r -p "Install required package(s) now? [y/N] " answer
+		[[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || {
+			echo "Aborted. Install the packages above and re-run." >&2
+			exit 1
+		}
+	fi
+
+	install_distro_packages "${unique_install[@]}"
+
+	for cmd in "${missing[@]}"; do
+		if ! command -v "$cmd" >/dev/null 2>&1; then
+			echo "ERROR: '${cmd}' still not on PATH after install." >&2
+			exit 1
+		fi
+	done
+}
+
+image_needs_xz() {
+	local image=$1
+	case "$image" in
+		*.xz|*.txz) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+ensure_flash_toolchain() {
+	local image=${1:-}
+	local -a cmds=(dd lsblk findmnt)
+	if [[ -n "$image" ]] && image_needs_xz "$image"; then
+		cmds+=(xz)
+		command -v pv >/dev/null 2>&1 || {
+			if [[ "${ROCKSTOR_FLASH_AUTO_INSTALL_DEPS:-0}" == 1 || "${ASSUME_YES}" == 1 ]]; then
+				ensure_commands pv
+			else
+				echo "Optional: 'pv' not found (install for decompression progress during .xz flash)."
+				read -r -p "Install pv now? [y/N] " answer
+				if [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]; then
+					ensure_commands pv
+				fi
+			fi
+		}
+	fi
+	ensure_commands "${cmds[@]}"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -43,10 +180,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 	exec sudo -E "$0" "$@"
 fi
 
-if ! command -v dd >/dev/null 2>&1 || ! command -v lsblk >/dev/null 2>&1; then
-	echo "ERROR: need dd and lsblk on PATH." >&2
-	exit 1
-fi
+ensure_flash_toolchain ""
 
 valid_block_dev() {
 	local d=$1
@@ -198,12 +332,6 @@ flash_image() {
 	case "$image" in
 		*.xz|*.txz) use_xz=1 ;;
 	esac
-	if (( use_xz )); then
-		if ! command -v xz >/dev/null 2>&1; then
-			echo "ERROR: xz not found (install xz-utils)." >&2
-			exit 1
-		fi
-	fi
 
 	unmount_disk_partitions "$dev"
 	sync
@@ -246,6 +374,8 @@ if [[ -z "$IMAGE_FILE" ]]; then
 fi
 
 [[ -f "$IMAGE_FILE" ]] || { echo "Not a file: $IMAGE_FILE" >&2; exit 1; }
+
+ensure_flash_toolchain "$IMAGE_FILE"
 
 ROOT_DISK=$(root_disk_device || true)
 if [[ -z "$TARGET_DEV" ]]; then
