@@ -191,20 +191,25 @@ valid_block_dev() {
 	esac
 }
 
+# Strip btrfs/overlay subvolume suffix e.g. /dev/mmcblk0p3[/@/.snapshots/1/snapshot]
+strip_mount_source() {
+	local src=$1
+	src=${src%%\[*]}
+	printf '%s' "$src"
+}
+
 disk_for_mount_source() {
 	local src=$1
-	local pk name
-	[[ -n "$src" && -e "$src" ]] || return 1
-	if [[ -b "$src" ]]; then
-		pk=$(lsblk -no PKNAME "$src" 2>/dev/null | head -1)
-		if [[ -n "$pk" ]]; then
-			echo "/dev/${pk}"
-			return 0
-		fi
-		echo "$src"
+	local pk
+	src=$(strip_mount_source "$src")
+	[[ -n "$src" && -b "$src" ]] || return 1
+	pk=$(lsblk -no PKNAME "$src" 2>/dev/null | head -1)
+	if [[ -n "$pk" ]]; then
+		echo "/dev/${pk}"
 		return 0
 	fi
-	return 1
+	echo "$src"
+	return 0
 }
 
 root_disk_device() {
@@ -214,16 +219,33 @@ root_disk_device() {
 	[[ -n "$disk" ]] && echo "$disk"
 }
 
+# True if dev is the system disk (root filesystem or /boot), not a safe flash target.
 is_excluded_disk() {
 	local dev=$1
-	local root=$2
-	if [[ -n "$root" && "$dev" == "$root" ]]; then
+	local root_disk=${2:-}
+	local root_part pk part mnt
+
+	if [[ -n "$root_disk" && "$dev" == "$root_disk" ]]; then
 		return 0
 	fi
-	local mnt
-	while read -r _mnt; do
-		[[ "$_mnt" == "/" ]] && return 0
-	done < <(lsblk -ln -o MOUNTPOINT "$dev" 2>/dev/null | grep -v '^$' || true)
+
+	root_part=$(strip_mount_source "$(findmnt -n -o SOURCE / 2>/dev/null || true)")
+	if [[ -n "$root_part" && -b "$root_part" ]]; then
+		pk=$(lsblk -no PKNAME "$root_part" 2>/dev/null | head -1)
+		if [[ -n "$pk" && "$dev" == "/dev/${pk}" ]]; then
+			return 0
+		fi
+	fi
+
+	while read -r part; do
+		[[ -n "$part" ]] || continue
+		while read -r mnt; do
+			case "$mnt" in
+				/|/boot) return 0 ;;
+			esac
+		done < <(lsblk -ln -o MOUNTPOINT "$part" 2>/dev/null | grep -v '^$' || true)
+	done < <(lsblk -ln -o NAME,TYPE "$dev" 2>/dev/null | awk '$2=="part"{print "/dev/"$1}')
+
 	return 1
 }
 
@@ -255,23 +277,23 @@ pick_image() {
 		echo "No .raw / .img / .xz images found in: $dir" >&2
 		return 1
 	fi
-	echo "Images in ${dir}:"
+	echo "Images in ${dir}:" >&2
 	for i in "${!files[@]}"; do
-		printf '  %2d) %s (%s)\n' "$((i + 1))" "$(basename "${files[$i]}")" "$(human_size "$(stat -c%s "${files[$i]}")")"
+		printf '  %2d) %s (%s)\n' "$((i + 1))" "$(basename "${files[$i]}")" "$(human_size "$(stat -c%s "${files[$i]}")")" >&2
 	done
-	echo "  q) Quit"
+	echo "  q) Quit" >&2
 	while true; do
-		read -r -p "Select image [1-${#files[@]}]: " choice
+		read -r -p "Select image [1-${#files[@]}]: " choice >&2
 		case "$choice" in
 			q|Q) return 1 ;;
 			''|*[!0-9]*)
-				echo "Enter a number or q." ;;
+				echo "Enter a number or q." >&2 ;;
 			*)
 				if (( choice >= 1 && choice <= ${#files[@]} )); then
 					echo "${files[$((choice - 1))]}"
 					return 0
 				fi
-				echo "Out of range." ;;
+				echo "Out of range." >&2 ;;
 		esac
 	done
 }
@@ -294,25 +316,25 @@ pick_disk() {
 		echo "No suitable block devices (root disk ${root_disk:-?} is excluded)." >&2
 		return 1
 	fi
-	echo "Target disks (root system disk excluded):"
+	echo "Target disks (root system disk excluded):" >&2
 	local i
 	for i in "${!devs[@]}"; do
-		printf '  %2d) %s\n' "$((i + 1))" "${labels[$i]}"
+		printf '  %2d) %s\n' "$((i + 1))" "${labels[$i]}" >&2
 	done
-	echo "  q) Quit"
+	echo "  q) Quit" >&2
 	local choice
 	while true; do
-		read -r -p "Select destination [1-${#devs[@]}]: " choice
+		read -r -p "Select destination [1-${#devs[@]}]: " choice >&2
 		case "$choice" in
 			q|Q) return 1 ;;
 			''|*[!0-9]*)
-				echo "Enter a number or q." ;;
+				echo "Enter a number or q." >&2 ;;
 			*)
 				if (( choice >= 1 && choice <= ${#devs[@]} )); then
 					echo "${devs[$((choice - 1))]}"
 					return 0
 				fi
-				echo "Out of range." ;;
+				echo "Out of range." >&2 ;;
 		esac
 	done
 }
