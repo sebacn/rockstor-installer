@@ -103,9 +103,7 @@ done
 }
 
 FREE_MIB=$(unallocated_mib_after_p3 "$DISK" || true)
-if partition3_needs_grow "$DISK"; then
-	:
-elif [[ -z "${FREE_MIB}" || "${FREE_MIB%%.*}" -lt 8 ]]; then
+if ! partition3_needs_grow "$DISK"; then
 	log "partition 3 already spans the disk; nothing to do"
 	[[ "${ONESHOT}" -eq 1 ]] && mkdir -p "${MARKER_DIR}" && touch "${MARKER_FILE}"
 	exit 0
