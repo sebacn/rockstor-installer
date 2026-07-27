@@ -74,6 +74,17 @@ fi
 boot_part="${devname}"
 if [ -b "${boot_part}" ]; then
     echo "ODROID HC4: recreating FAT boot on ${boot_part} after U-Boot install"
+    # Kiwi may still have the boot partition mounted (e.g. /var/tmp/kiwi_mount_manager.*).
+    if command -v findmnt >/dev/null 2>&1; then
+        while read -r mnt; do
+            [ -n "${mnt}" ] || continue
+            echo "ODROID HC4: unmounting ${mnt} (${boot_part}) before mkfs.vfat"
+            umount "${mnt}" || umount -l "${mnt}"
+        done < <(findmnt -rn -S "${boot_part}" -o TARGET 2>/dev/null || true)
+    fi
+    if mountpoint -q "${boot_part}" 2>/dev/null || findmnt -S "${boot_part}" >/dev/null 2>&1; then
+        umount "${boot_part}" || umount -l "${boot_part}"
+    fi
     mkfs.vfat -F 32 -n BOOT "${boot_part}"
     boot_mnt=$(mktemp -d)
     mount "${boot_part}" "${boot_mnt}"
