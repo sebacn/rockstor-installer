@@ -6,19 +6,27 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE=${1:-}
 [[ -n "$IMAGE" ]] || { echo "Usage: $0 /path/to/image.raw|/dev/sdX" >&2; exit 1; }
 
+run_root() {
+	if [[ "$(id -u)" -eq 0 ]]; then
+		"$@"
+	else
+		sudo "$@"
+	fi
+}
+
 cleanup() {
-	[[ -n "${mnt:-}" && -d "$mnt" ]] && umount "$mnt" 2>/dev/null || true
+	[[ -n "${mnt:-}" && -d "$mnt" ]] && run_root umount "$mnt" 2>/dev/null || true
 	[[ -n "${mnt:-}" && -d "$mnt" ]] && rmdir "$mnt" 2>/dev/null || true
-	[[ -n "${loop:-}" && -b "$loop" ]] && kpartx -d "$loop" 2>/dev/null || true
-	[[ -n "${loop:-}" && -b "$loop" ]] && losetup -d "$loop" 2>/dev/null || true
+	[[ -n "${loop:-}" && -b "$loop" ]] && run_root kpartx -d "$loop" 2>/dev/null || true
+	[[ -n "${loop:-}" && -b "$loop" ]] && run_root losetup -d "$loop" 2>/dev/null || true
 }
 trap cleanup EXIT
 
 loop=""
 mnt=""
 if [[ -f "$IMAGE" ]]; then
-	loop=$(losetup -fP --show "$IMAGE")
-	kpartx -av "$loop" >/dev/null 2>&1
+	loop=$(run_root losetup -fP --show "$IMAGE")
+	run_root kpartx -av "$loop" >/dev/null 2>&1
 	sleep 1
 	disk="$loop"
 	boot="/dev/mapper/$(basename "$loop")p1"
@@ -40,7 +48,7 @@ fi
 }
 
 mnt=$(mktemp -d)
-mount "$boot" "$mnt"
+run_root mount "$boot" "$mnt"
 conf="${mnt}/extlinux/extlinux.conf"
 [[ -f "$conf" ]] || {
 	echo "validate-hc4-extlinux-root: missing ${conf}" >&2
