@@ -4,8 +4,9 @@
 # Rootless Docker cannot run kiwi-ng system build (proc mount in chroot fails).
 # Full instructions: README.md → Tumbleweed.OdroidHC4 → Option A — Docker on arm64.
 #
-# Quick start (on aarch64, from rockstor-installer checkout):
+# Quick start (on aarch64; sudo prompts for password if needed):
 #
+#   cd rockstor-installer && git checkout odroid-hc4
 #   export ROCKSTOR_KIWI_TARGET="$HOME/kiwi-images-hc4"
 #   export ROCKSTOR_KIWI_CACHE="$HOME/kiwi-cache"
 #   export ROCKSTOR_KIWI_VAR_TMP="$HOME/kiwi-var-tmp"
