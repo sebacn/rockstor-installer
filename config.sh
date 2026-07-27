@@ -124,6 +124,23 @@ EOF
 ACTION=="add", SUBSYSTEM=="leds", KERNEL=="blue*", RUN+="/usr/libexec/rockstor-hc4-blue-led-heartbeat.sh --oneshot"
 EOF
 	baseInsertService rockstor-hc4-blue-led-heartbeat
+	[[ -f /usr/libexec/rockstor-hc4-expand-root-partition.sh ]] && chmod 0755 /usr/libexec/rockstor-hc4-expand-root-partition.sh
+	cat >/etc/systemd/system/rockstor-hc4-expand-root.service <<'EOF'
+[Unit]
+Description=ODROID-HC4 grow ROOT partition and btrfs to fill SD
+DefaultDependencies=no
+After=local-fs.target
+Before=swap.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rockstor-hc4-expand-root-partition.sh --oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	baseInsertService rockstor-hc4-expand-root
 fi
 baseInsertService jeos-firstboot
 baseInsertService NetworkManager

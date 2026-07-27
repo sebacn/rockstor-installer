@@ -12,27 +12,21 @@ FIRST_PART_START=8192
 
 _expand_hc4_root_partition() {
 	local disk=$1 root_part=$2
-	# Kiwi dracut first-boot repart hangs/timeouts when most of the SD is unallocated.
-	umount "$root_part" 2>/dev/null || true
-	if ! parted -s "$disk" resizepart 3 100% 2>/dev/null; then
-		echo "WARNING: could not grow partition 3 on $disk (is it mounted?)" >&2
-		return 0
+	# Delegate to shared expand helper (same as first-boot systemd on installed images).
+	local expand=/usr/libexec/rockstor-hc4-expand-root-partition.sh
+	if [[ -x "$expand" ]]; then
+		"$expand" "$disk"
+		return
 	fi
-	partprobe "$disk" 2>/dev/null || true
-	sleep 1
-	local mnt
-	mnt=$(mktemp -d)
-	if mount "$root_part" "$mnt" 2>/dev/null; then
-		btrfs filesystem resize max "$mnt" || true
-		if btrfs subvolume list "$mnt" | grep -q 'path @/.snapshots/1/snapshot'; then
-			btrfs subvolume set-default "$mnt/@/.snapshots/1/snapshot" 2>/dev/null || true
-		elif btrfs subvolume list "$mnt" | grep -q 'path @'; then
-			btrfs subvolume set-default "$mnt/@" 2>/dev/null || true
-		fi
-		umount "$mnt"
+	if [[ -x "${REPO_ROOT}/root/usr/libexec/rockstor-hc4-expand-root-partition.sh" ]]; then
+		bash "${REPO_ROOT}/root/usr/libexec/rockstor-hc4-expand-root-partition.sh" "$disk"
+		return
 	fi
-	rmdir "$mnt" 2>/dev/null || true
-	echo "Expanded btrfs root to fill $disk (skips kiwi OEM repart on first boot)."
+	if [[ -x "${REPO_ROOT}/scripts/expand-hc4-root-partition.sh" ]]; then
+		bash "${REPO_ROOT}/scripts/expand-hc4-root-partition.sh" "$disk"
+		return
+	fi
+	echo "WARNING: expand helper not found" >&2
 }
 
 usage() {

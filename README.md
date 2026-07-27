@@ -336,6 +336,8 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 <<<<<<< HEAD
 **`/etc/fstab` (swap, /boot):** Swap is **not** on the kernel cmdline (no dracut wait like `root=`). Kiwi still writes **`devicepersistency=by-uuid`** fstab lines; HC4 **`pre_disk_sync.sh`** rewrites **`/boot`**, **swap**, and **`/`** to **`LABEL=BOOT`**, **`LABEL=SWAP`**, and **`LABEL=ROOT`** so **`mkfs.vfat`** / **`mkswap -L SWAP`** in repair/migrate do not leave stale UUIDs. **`scripts/patch-hc4-fstab-labels.sh`** is used by **`repair-hc4-boot-fat.sh`** and **`migrate-hc4-disk-armbian-layout.sh`**.
 
+**Root partition growth:** Kiwi **`oem-resize-once`** repart is **disabled in the HC4 initrd** (hangs on large unallocated SD). New images install **`rockstor-hc4-expand-root.service`**, which runs **`/usr/libexec/rockstor-hc4-expand-root-partition.sh`** once to **`parted resizepart 3 100%`** and **`btrfs filesystem resize max`**. On an already-flashed card: **`sudo scripts/expand-hc4-root-partition.sh /dev/mmcblk0`** (or omit the device to use the disk hosting `/`). Idempotent marker: **`/var/lib/rockstor/hc4-root-expanded`**.
+
 =======
 >>>>>>> origin/cursor/hc4-extlinux-root-uuid-1130
 **DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** drops the GPIO line from always-on **`regulator-vcc-5v`** and **`vin-supply`** on **`gpio-regulator-tf-io`** so a failed 5V GPIO probe does not defer **`ffe05000.mmc`** (do not remove MMC **`vmmc-supply`/`vqmmc-supply`** — that breaks SD voltage negotiation). Initrd includes a pre-mount retry hook for deferred MMC bind.
