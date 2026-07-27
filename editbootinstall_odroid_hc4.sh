@@ -101,12 +101,14 @@ if [ -b "${boot_part}" ]; then
 		[ "$base" = "Image" ] || [ "$base" = "initrd" ] && continue
 		cp -a "$f" "${boot_mnt}/"
 	done
-	for dtb_sh in "${image_root}/../scripts/build-hc4-linux-dtb.sh" "${image_root}/scripts/build-hc4-linux-dtb.sh" "/workspace/scripts/build-hc4-linux-dtb.sh"; do
-		if [ -x "$dtb_sh" ]; then
-			"$dtb_sh" "${image_root}/boot/odroid-hc4.dtb"
-			break
-		fi
-	done
+	if [ ! -f "${image_root}/boot/odroid-hc4.dtb" ]; then
+		for dtb_sh in "${image_root}/../scripts/build-hc4-linux-dtb.sh" "${image_root}/scripts/build-hc4-linux-dtb.sh" "/workspace/scripts/build-hc4-linux-dtb.sh"; do
+			if [ -x "$dtb_sh" ]; then
+				"$dtb_sh" "${image_root}/boot/odroid-hc4.dtb" || echo "ODROID HC4: WARNING: ${dtb_sh} failed (install device-tree-compiler?)" >&2
+				break
+			fi
+		done
+	fi
 	if [ -f "${image_root}/boot/odroid-hc4.dtb" ]; then
 		cp -a "${image_root}/boot/odroid-hc4.dtb" "${boot_mnt}/"
 	fi
