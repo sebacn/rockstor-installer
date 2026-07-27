@@ -2,7 +2,7 @@
 # Runs inside rockstor-worker container before kiwi-ng (HC4 MBR / disk_start_sector=8192).
 set -euo pipefail
 
-KIWI_PREP_PKGS="${KIWI_PREP_PKGS:-util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd}"
+KIWI_PREP_PKGS="${KIWI_PREP_PKGS:-util-linux util-linux-systemd pam_pwquality device-mapper kpartx parted systemd zstd cpio xz}"
 PROFILE="${ROCKSTOR_KIWI_PROFILE:-Tumbleweed.OdroidHC4}"
 TARGET_DIR="${KIWI_TARGET_DIR:-/home/kiwi-images}"
 CACHE_DIR="${KIWI_CACHE_DIR:-/kiwi-package-cache}"
