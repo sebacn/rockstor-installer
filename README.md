@@ -333,8 +333,11 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 
 **extlinux `root=`:** The overlay template uses **`root=LABEL=ROOT`** (kiwi’s btrfs label). During **`editbootinstall_odroid_hc4.sh`**, **`scripts/patch-hc4-extlinux-root.sh`** rewrites `root=` from the actual ROOT partition on the built disk so dracut does not wait forever on a stale hard-coded UUID. Post-build **`scripts/validate-hc4-extlinux-root.sh`** checks the FAT `/boot` copy matches partition 3.
 
+<<<<<<< HEAD
 **`/etc/fstab` (swap, /boot):** Swap is **not** on the kernel cmdline (no dracut wait like `root=`). Kiwi still writes **`devicepersistency=by-uuid`** fstab lines; HC4 **`pre_disk_sync.sh`** rewrites **`/boot`**, **swap**, and **`/`** to **`LABEL=BOOT`**, **`LABEL=SWAP`**, and **`LABEL=ROOT`** so **`mkfs.vfat`** / **`mkswap -L SWAP`** in repair/migrate do not leave stale UUIDs. **`scripts/patch-hc4-fstab-labels.sh`** is used by **`repair-hc4-boot-fat.sh`** and **`migrate-hc4-disk-armbian-layout.sh`**.
 
+=======
+>>>>>>> origin/cursor/hc4-extlinux-root-uuid-1130
 **DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** drops the GPIO line from always-on **`regulator-vcc-5v`** and **`vin-supply`** on **`gpio-regulator-tf-io`** so a failed 5V GPIO probe does not defer **`ffe05000.mmc`** (do not remove MMC **`vmmc-supply`/`vqmmc-supply`** — that breaks SD voltage negotiation). Initrd includes a pre-mount retry hook for deferred MMC bind.
 
 **DTB LAN (`end0`):** The external RTL8211 PHY sits on the G12A MDIO mux; **`reset-gpios`** / **`regulator-p12v-*` GPIO** can fail with **`-EPERM`** so **`g12a-mdio_mux`** never registers and **`end0`** logs *cannot attach to PHY*. The patched DTB removes those GPIO hooks, disables unused internal **`mdio@1`**, and drops duplicate **`snps,reset-*`** on **`ethernet@ff3f0000`**.
