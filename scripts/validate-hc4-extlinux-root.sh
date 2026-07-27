@@ -27,6 +27,8 @@ mnt=""
 if [[ -f "$IMAGE" ]]; then
 	loop=$(run_root losetup -fP --show "$IMAGE")
 	run_root kpartx -av "$loop" >/dev/null 2>&1
+	run_root partprobe "$loop" 2>/dev/null || true
+	run_root udevadm settle 2>/dev/null || true
 	sleep 1
 	disk="$loop"
 	boot="/dev/mapper/$(basename "$loop")p1"
@@ -61,13 +63,22 @@ append_line=$(grep -E '^[[:space:]]*append ' "$conf" | head -1 || true)
 	exit 1
 }
 
-root_uuid=$(blkid -s UUID -o value "$root")
-root_label=$(blkid -s LABEL -o value "$root" || true)
+root_uuid=$(run_root blkid -s UUID -o value "$root" 2>/dev/null || true)
+root_label=$(run_root blkid -s LABEL -o value "$root" 2>/dev/null || true)
 
 ok=0
-if grep -q 'root=LABEL=ROOT' <<<"$append_line" && [[ "$root_label" == ROOT ]]; then
-	ok=1
-elif grep -q "root=UUID=${root_uuid}" <<<"$append_line"; then
+if grep -q 'root=LABEL=ROOT' <<<"$append_line"; then
+	if [[ "$root_label" == ROOT ]]; then
+		ok=1
+	else
+		label_dev=$(run_root blkid -L ROOT -o device 2>/dev/null | head -1 || true)
+		if [[ -n "$label_dev" && -b "$label_dev" ]]; then
+			rn=$(run_root readlink -f "$root" 2>/dev/null || echo "$root")
+			ln=$(run_root readlink -f "$label_dev" 2>/dev/null || echo "$label_dev")
+			[[ "$rn" == "$ln" ]] && ok=1
+		fi
+	fi
+elif [[ -n "$root_uuid" ]] && grep -q "root=UUID=${root_uuid}" <<<"$append_line"; then
 	ok=1
 fi
 
