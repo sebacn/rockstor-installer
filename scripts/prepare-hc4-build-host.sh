@@ -166,4 +166,14 @@ if [[ "${MODE}" == native ]]; then
 	fi
 fi
 
+if grep -q 'profiles="Tumbleweed.OdroidHC4"' "${REPO_ROOT}/rockstor.kiwi" 2>/dev/null \
+	&& grep -q 'luks="file://' "${REPO_ROOT}/rockstor.kiwi" 2>/dev/null; then
+	chmod +x "${REPO_ROOT}/scripts/hc4-luks-key-file.sh" 2>/dev/null || true
+	"${REPO_ROOT}/scripts/hc4-luks-key-file.sh" >/dev/null || {
+		log "LUKS HC4 build: copy .hc4-luks-passphrase.example to .hc4-luks-passphrase (chmod 600)"
+		exit 1
+	}
+	log "LUKS passphrase file present for OdroidHC4 image build"
+fi
+
 log "prepare complete"

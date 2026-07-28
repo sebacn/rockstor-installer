@@ -63,6 +63,7 @@ if [[ "${kiwi_profiles:-}${kiwi_profile:-}" == *OdroidHC4* ]]; then
 	mkdir -p /etc/dracut.conf.d
 	cat >/etc/dracut.conf.d/rockstor-odroid-hc4.conf <<'EOF'
 add_drivers+=" mmc_core meson_gx_mmc mmc_block btrfs ledtrig_heartbeat "
+add_dracutmodules+=" crypt "
 hostonly="no"
 EOF
 	install -d /usr/libexec

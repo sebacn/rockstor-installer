@@ -1,0 +1,4 @@
+# Copy to .hc4-luks-passphrase in the repo root (gitignored).
+# Single line: build-time LUKS passphrase for Tumbleweed.OdroidHC4 kiwi images only.
+# First boot should use rd.kiwi.oem.luks.reencrypt (in kernel cmdline) to replace it.
+changeme-build-only-passphrase
