@@ -138,8 +138,10 @@ Order and online/offline constraints must be tested on real HC4 hardware.
 
 ## Validation checklist
 
-- [ ] `kiwi-ng` schema load for `Tumbleweed.OdroidHC4` with LUKS attrs (x86_64 cloud agent: schema only).
-- [ ] Full build on arm64 + `validate-hc4-raw-uboot.sh` / extlinux validator (LUKS-aware).
+- [x] `rockstor.kiwi` LUKS + `luksformat` PBKDF2 + cmdline `rd.kiwi.oem.luks.reencrypt` / `rd.neednet=1` (OdroidHC4)
+- [x] `config.sh` dracut `crypt` module; `patch-hc4-extlinux-root.sh` + validator LUKS-aware
+- [ ] `kiwi-ng` schema load for `Tumbleweed.OdroidHC4` with LUKS attrs (arm64 build host)
+- [ ] Full build on arm64 + `validate-hc4-raw-uboot.sh` / extlinux validator (LUKS-aware)
 - [ ] Boot HC4: prompt on **ttyAML0** and **HDMI**; successful unlock and `switch_root`.
 - [ ] Reboot: same passphrase; marker for expand-root + resize inside LUKS.
 - [ ] Flash script: no change expected (bit-copy `.raw`).
