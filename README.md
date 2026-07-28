@@ -331,15 +331,14 @@ Host needs **`dpkg-deb`** to extract the Armbian package (Debian/Ubuntu: `dpkg`;
 
 **Btrfs / Snapper root subvolume:** Kiwi HC4 images use Snapper; the installed OS lives under **`@/.snapshots/1/snapshot`**, not the empty **`@`** subvolume. extlinux must use **`rootflags=subvol=@/.snapshots/1/snapshot`** (not `subvol=@`), or `switch_root` fails with *os-release file is missing* even when `mmcblk0p3` mounts. Do not set the btrfs default subvolume to bare `@` on migrated cards.
 
-**extlinux `root=`:** The overlay template uses **`root=LABEL=ROOT`** (kiwi’s btrfs label). During **`editbootinstall_odroid_hc4.sh`**, **`scripts/patch-hc4-extlinux-root.sh`** rewrites `root=` from the actual ROOT partition on the built disk so dracut does not wait forever on a stale hard-coded UUID. Post-build **`scripts/validate-hc4-extlinux-root.sh`** checks the FAT `/boot` copy matches partition 3.
+**extlinux `root=`:** The overlay template uses **`root=LABEL=ROOT`** (kiwi’s btrfs label). During **`editbootinstall_odroid_hc4.sh`**, **`scripts/patch-hc4-extlinux-root.sh`** rewrites `root=` from the actual ROOT partition on the built disk (and **`rd.luks.uuid=`** when root is LUKS). Post-build **`scripts/validate-hc4-extlinux-root.sh`** checks the FAT `/boot` copy.
 
-<<<<<<< HEAD
+**LUKS encrypted root (experimental, `odroid-hc4-encrypt-root`):** The `Tumbleweed.OdroidHC4` profile uses kiwi **`luks`** with passphrase file **`/workspace/.hc4-luks-passphrase`** (copy **`.hc4-luks-passphrase.example`** → **`.hc4-luks-passphrase`** in the repo root before build; gitignored). Kernel cmdline includes **`rd.kiwi.oem.luks.reencrypt`** and **`rd.neednet=1`** (for planned SSH unlock). Dracut **`crypt`** module is enabled in **`config.sh`**. See **`docs/HC4-ROOT-LUKS.md`**.
+
 **`/etc/fstab` (swap, /boot):** Swap is **not** on the kernel cmdline (no dracut wait like `root=`). Kiwi still writes **`devicepersistency=by-uuid`** fstab lines; HC4 **`pre_disk_sync.sh`** rewrites **`/boot`**, **swap**, and **`/`** to **`LABEL=BOOT`**, **`LABEL=SWAP`**, and **`LABEL=ROOT`** so **`mkfs.vfat`** / **`mkswap -L SWAP`** in repair/migrate do not leave stale UUIDs. **`scripts/patch-hc4-fstab-labels.sh`** is used by **`repair-hc4-boot-fat.sh`** and **`migrate-hc4-disk-armbian-layout.sh`**.
 
 **Root partition growth:** Kiwi **`oem-resize-once`** repart is **disabled in the HC4 initrd** (hangs on large unallocated SD). New images install **`rockstor-hc4-expand-root.service`**, which runs **`/usr/libexec/rockstor-hc4-expand-root-partition.sh`** once to **`parted resizepart 3 100%`** and **`btrfs filesystem resize max`**. On an already-flashed card: **`sudo scripts/expand-hc4-root-partition.sh /dev/mmcblk0`** (or omit the device to use the disk hosting `/`). Idempotent marker: **`/var/lib/rockstor/hc4-root-expanded`**.
 
-=======
->>>>>>> origin/cursor/hc4-extlinux-root-uuid-1130
 **DTB regulator / MMC deferral:** Patched **`odroid-hc4.dtb`** drops the GPIO line from always-on **`regulator-vcc-5v`** and **`vin-supply`** on **`gpio-regulator-tf-io`** so a failed 5V GPIO probe does not defer **`ffe05000.mmc`** (do not remove MMC **`vmmc-supply`/`vqmmc-supply`** — that breaks SD voltage negotiation). Initrd includes a pre-mount retry hook for deferred MMC bind.
 
 **DTB LAN (`end0`):** The external RTL8211 PHY sits on the G12A MDIO mux; **`reset-gpios`** / **`regulator-p12v-*` GPIO** can fail with **`-EPERM`** so **`g12a-mdio_mux`** never registers and **`end0`** logs *cannot attach to PHY*. The patched DTB removes those GPIO hooks, disables unused internal **`mdio@1`**, and drops duplicate **`snps,reset-*`** on **`ethernet@ff3f0000`**.

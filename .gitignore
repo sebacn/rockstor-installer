@@ -58,4 +58,7 @@ root/boot/u-boot.bin
 root/boot/u-boot-hc4-*.bin
 root/boot/u-boot.bin.armbian.bak
 root/boot/.uboot-install-style
+# HC4 LUKS image build passphrase (see .hc4-luks-passphrase.example)
+.hc4-luks-passphrase
+
 .build/
