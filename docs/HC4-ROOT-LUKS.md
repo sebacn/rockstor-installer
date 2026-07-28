@@ -202,3 +202,141 @@ Source: [Full root filesystem encryption on an Armbian system](https://forum.arm
 **Optional third path (not kiwi-native):** run a **post-flash migration** script on a live HC4 (inspired by MMGen or `mmgen-geek-tools`) that repartitions, LUKS-formats p3, rsyncs btrfs, rewrites extlinux/fstab/crypttab, and runs **`dracut -f`** — similar to `scripts/migrate-hc4-disk-armbian-layout.sh` scope. Heavier and riskier than baking LUKS in kiwi, but closest to the forum workflow.
 
 **Recommendation:** Prefer **KIWI LUKS + dracut crypt** for the installer `.raw` on `odroid-hc4-encrypt-root`; treat the Armbian tutorial as validation that **HC4 + extlinux + LUKS mapper** is feasible, and as a reference for **remote unlock** (dropbear) if we add it later on openSUSE/dracut.
+
+## SSH unlock LUKS root, then normal boot (primary goal)
+
+**Target behaviour:** HC4 powers on headless → **Ethernet is up in initrd** → admin **`ssh`** into early userspace → enters **LUKS passphrase** → initrd opens root, **`switch_root`** → normal openSUSE/Rockstor boots (NetworkManager, `sshd` on the installed system, Rockstor UI).
+
+Armbian MMGen uses **Dropbear** on port **2222** and `cryptroot-unlock`. On **openSUSE Tumbleweed + dracut**, the practical equivalent is **`dracut-sshd`** (OpenSSH in initrd) plus **network in initrd**, then **`systemd-tty-ask-password-agent`** over SSH ([dracut-sshd](https://github.com/gsauthof/dracut-sshd), [openSUSE forum discussion](https://forums.opensuse.org/t/remote-unlock-ssh-an-encrypted-installation/147303)). Package **`dracut-sshd`** is published for openSUSE (see project README / OBS).
+
+Do **not** port `dropbear-initramfs` unless dracut-sshd proves unusable on aarch64 HC4 (larger initrd, different key handling).
+
+### Boot sequence (with SSH unlock)
+
+```mermaid
+sequenceDiagram
+  participant U as U-Boot
+  participant F as FAT /boot
+  participant I as dracut initrd
+  participant N as network (initrd)
+  participant S as sshd (initrd)
+  participant L as LUKS / btrfs root
+  participant O as installed OS
+
+  U->>F: load kernel + initrd + extlinux
+  F->>I: boot
+  I->>I: MMC/DTB hooks (HC4)
+  I->>N: systemd-networkd or wicked
+  N->>S: link up, DHCP/static
+  S->>S: listen (authorized_keys)
+  Note over S: Admin: ssh root@IP
+  S->>L: systemd-tty-ask-password-agent → passphrase
+  L->>O: cryptsetup open, mount btrfs, switch_root
+  O->>O: normal multi-user (NM, Rockstor)
+```
+
+FAT **`/boot` stays unencrypted** (kernel, initrd, extlinux, DTB). Only initrd contents and kernel cmdline change.
+
+### Implementation phases (repo updates on `odroid-hc4-encrypt-root`)
+
+#### Phase A — LUKS root (blocking for SSH unlock)
+
+Without encrypted root, SSH unlock has nothing to do.
+
+| Step | Where | Action |
+|------|--------|--------|
+| A1 | `rockstor.kiwi` `Tumbleweed.OdroidHC4` | `luks` + `luks_version="luks2"`, `bootpartition="true"`; build passphrase via private keyfile, not git |
+| A2 | `config.sh` (OdroidHC4) | `add_dracutmodules+=" crypt "` in `rockstor-odroid-hc4.conf` |
+| A3 | `patch-hc4-extlinux-root.sh` | LUKS: add `rd.luks.uuid=…`; keep btrfs `root=` / `rootflags=subvol=@/.snapshots/1/snapshot` |
+| A4 | `rockstor.kiwi` `kernelcmdline` | `rd.neednet=1` (see Phase B); keep `console=ttyAML0,115200n8` for local fallback |
+| A5 | First deploy | Consider `rd.kiwi.oem.luks.reencrypt` so flashable image is not tied to build passphrase forever |
+
+Verify **local** unlock (serial/HDMI password prompt) before SSH.
+
+#### Phase B — Network inside initrd (blocking for SSH)
+
+Initrd must bring up **HC4 Ethernet** before or while LUKS waits. Installed OS uses **NetworkManager**; initrd should **not** rely on NM unless you explicitly add dracut’s NM path (heavier, forum reports double-IP quirks).
+
+| Step | Where | Action |
+|------|--------|--------|
+| B1 | `rockstor.kiwi` packages | Add **`dracut-network`**; add **`systemd-networkd`** (or use **wicked** + dracut `network` module per [openSUSE dracut networking](https://forums.opensuse.org/t/remote-unlock-ssh-an-encrypted-installation/147303)) |
+| B2 | `config.sh` | `add_dracutmodules+=" systemd-networkd "` (or wicked/network); `install_items+=" /etc/systemd/network/50-rockstor-initrd.network "` |
+| B3 | Image root file | `/etc/systemd/network/50-rockstor-initrd.network` — match HC4 NIC (`Name=en*` / `end*` / `eth0` from `ip link` on hardware) |
+| B4 | `rockstor.kiwi` `kernelcmdline` | `rd.neednet=1`; optional static `ip=…` or DHCP via networkd file (avoid `ip=dhcp` unless using dracut backend that supports it) |
+| B5 | `config.sh` dracut | Include **Ethernet driver modules** for meson (e.g. `dwmac_meson`, `stmmac`) if not pulled in automatically |
+| B6 | `patch-hc4-initrd.sh` | After unpack/repack: sanity-check `etc/systemd/network/*`, `usr/sbin/sshd` present when Phase C enabled |
+
+**Test:** `rd.break=pre-mount` (or `rd.shell`) from extlinux, confirm interface has IP in initrd on real HC4.
+
+#### Phase C — SSH in initrd (`dracut-sshd`)
+
+| Step | Where | Action |
+|------|--------|--------|
+| C1 | `rockstor.kiwi` | Package **`dracut-sshd`** (aarch64 Tumbleweed) |
+| C2 | `config.sh` | Create `/etc/dracut-sshd/authorized_keys` from build-time placeholder or first-boot hook; document admin must install their **ed25519** public key before relying on SSH unlock |
+| C3 | `config.sh` | Ensure dracut includes keys: `/etc/dracut-sshd/authorized_keys` (preferred over `/root/.ssh` during kiwi chroot) |
+| C4 | `config.sh` | `add_dracutmodules+=" sshd "` if not auto-enabled; rebuild initrd during image build (`dracut -f` in chroot or trust kiwi regen) |
+| C5 | `editbootinstall_odroid_hc4.sh` | Still run `patch-hc4-initrd.sh` on FAT `initrd` only if patches remain compatible with larger initrd (size check on FAT partition) |
+
+**Admin workflow (runtime):**
+
+```text
+ssh -o StrictHostKeyChecking=accept-new root@<hc4-initrd-ip>
+# in initrd shell:
+systemd-tty-ask-password-agent
+# enter LUKS passphrase; when prompts complete, SSH drops and machine continues boot
+# after ~1–2 min, normal system:
+ssh root@<hc4-ip>   # host keys differ from initrd; use installed system keys
+```
+
+Optional: document **initrd host keys** (regenerated per dracut-sshd policy) vs **installed** `sshd` keys.
+
+Armbian’s **port 2222** is only needed to separate dropbear from production sshd; initrd-only **OpenSSH on 22** is usually fine because production `sshd` is not running until after `switch_root`.
+
+#### Phase D — Normal boot after unlock
+
+| Step | Where | Action |
+|------|--------|--------|
+| D1 | `/etc/crypttab` | KIWI-generated `luks` entry with `initramfs` option; fstab root on mapper or btrfs UUID inside LUKS |
+| D2 | `pre_disk_sync.sh` | Align fstab/crypttab with mapper names KIWI uses |
+| D3 | Installed `sshd` | Unchanged (`openssh` already in image); Rockstor services start as today |
+| D4 | `rockstor-hc4-expand-root.service` | Extend for `cryptsetup resize` after partition grow |
+
+No change to U-Boot or extlinux beyond **append** line (LUKS + net params).
+
+#### Phase E — Validation on HC4 hardware
+
+1. Flash encrypted `.raw`; set LUKS passphrase (reencrypt flow if used).
+2. Install SSH public key in `/etc/dracut-sshd/authorized_keys` (first boot chroot or custom config overlay).
+3. Rebuild initrd if keys added post-build: `dracut -f` and recopy to FAT `/boot` (or rebuild image).
+4. Cold boot: ping/DHCP; SSH unlock; confirm Rockstor UI.
+5. Reboot: repeat SSH unlock; confirm expand-root if unallocated space present.
+
+### Mapping Armbian MMGen → this plan
+
+| MMGen step | Our phase |
+|------------|-----------|
+| `cryptsetup luksFormat` / `crypttab` | A (KIWI + crypttab) |
+| `initramfs.conf` `IP=` / `DEVICE=` | B (systemd-networkd + `.network`) |
+| `dropbear-initramfs` + `authorized_keys` | C (`dracut-sshd` + `/etc/dracut-sshd/authorized_keys`) |
+| `cryptroot-unlock` on SSH login | C (`systemd-tty-ask-password-agent`) |
+| extlinux `root=/dev/mapper/rootfs` | A3 (`rd.luks.uuid` + btrfs `root=`) |
+
+### Risks specific to SSH unlock
+
+| Risk | Mitigation |
+|------|------------|
+| No network in initrd | Phase B; test with `rd.break`; include meson NIC drivers |
+| Initrd too large for FAT `/boot` | Monitor `initrd` size (sshd + network adds ~few MiB compressed); 512 MiB FAT is ample |
+| Wrong NIC name in `.network` | Document HC4 interface name; optional udev match on MAC |
+| Build-time LUKS passphrase in leaked `.raw` | `rd.kiwi.oem.luks.reencrypt` + user-chosen passphrase at first boot |
+| Locked out | Keep **serial console** passphrase path (`ttyAML0`) |
+| Wi-Fi unlock | Out of scope; HC4 NAS use case is **Ethernet** |
+
+### Suggested PR order (SSH unlock track)
+
+1. **A** — KIWI LUKS + dracut `crypt` + extlinux (local unlock).  
+2. **B** — initrd network on HC4.  
+3. **C** — `dracut-sshd` + keys + README operator guide.  
+4. **D** — expand-root + LUKS resize.  
+5. **E** — hardware test notes / optional `validate-hc4-initrd-ssh.sh` (grep `lsinitrd` for sshd + network + crypt).
